@@ -16,6 +16,9 @@ enable_testing()
 add_subdirectory("3rdparty/glfw/")
 find_package(OpenGL REQUIRED)
 
+# boost
+find_package(Boost REQUIRED)
+
 # main
 add_executable(main src/main.cpp)
 target_link_libraries(main glfw)
