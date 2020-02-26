@@ -6,6 +6,7 @@ add_subdirectory("3rdparty/ceres")
 
 # eigen
 find_package (Eigen3 3.3 REQUIRED NO_MODULE)
+include_directories("${EIGEN_INCLUDE_DIR}")
 
 # gtest
 add_subdirectory("3rdparty/gtest")
