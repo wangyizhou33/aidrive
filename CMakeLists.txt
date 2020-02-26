@@ -11,5 +11,9 @@ find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 add_subdirectory("3rdparty/gtest")
 enable_testing()
 
+# glfw
+add_subdirectory("3rdparty/glfw/")
+find_package(OpenGL REQUIRED)
+
 # main
 add_executable(main src/main.cpp)
