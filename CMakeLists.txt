@@ -17,3 +17,5 @@ find_package(OpenGL REQUIRED)
 
 # main
 add_executable(main src/main.cpp)
+target_link_libraries(main glfw)
+# target_link_libraries(main OpenGL::GL)
