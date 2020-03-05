@@ -25,10 +25,5 @@ find_package(GLEW REQUIRED) # apt-get install libglfw-dev
 # imgui
 add_subdirectory("3rdparty/imgui/")
 
-# main
-add_executable(main src/main.cpp)
-target_include_directories(main PRIVATE "include/")
-target_link_libraries(main 
-    glfw
-    OpenGL::GL
-)
+# library
+add_subdirectory("src/")
