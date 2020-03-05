@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 3.10)
 
 # dependency
-# apt-get install libglfw-dev
+# apt-get install libglew-dev
 
 project(imgui)
 
@@ -12,8 +12,6 @@ set(phdrs ${root}/imgui.h)
 set(hdrs ${root}/stb_rect_pack.h ${root}/stb_textedit.h ${root}/stb_truetype.h)
 set(srcs ${root}/imgui.cpp)
 set(inst_srcs ${inst_src_dir}/imgui.cpp)
-
-
 
 set(IMGUI_SOURCES
     "${root}/imgui.cpp"
@@ -42,3 +40,18 @@ add_library(
 )
 
 target_include_directories(ImGui PUBLIC "${root}")
+
+# build an imgui example
+add_executable(example_glfw_opengl3
+    ${root}/examples/example_glfw_opengl3/main.cpp)
+
+target_include_directories(example_glfw_opengl3 PUBLIC
+    ${IMGUI_HEADERS}
+    "${root}/examples/")
+
+target_link_libraries(example_glfw_opengl3 PUBLIC
+    ImGui
+    glfw
+    GLEW::GLEW
+    OpenGL::GL
+)
