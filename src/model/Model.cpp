@@ -13,8 +13,8 @@ void KinematicModel::operator()(Vector3f& dxdt,
                                 float32_t v,
                                 float32_t delta) const
 {
-    dxdt[0] = v * std::cos(dxdt[2]);
-    dxdt[1] = v * std::sin(dxdt[2]);
+    dxdt[0] = v * std::cos(x[2]);
+    dxdt[1] = v * std::sin(x[2]);
     dxdt[2] = v / m_wheelBase * std::tan(delta);
 }
 
@@ -29,7 +29,7 @@ Vector4f MotionModel::advance(const Vector4f& state,
                                       finalState,
                                       0.f,
                                       elapseTime,
-                                      1e-2f);
+                                      1e-3f);
 
     return {finalState[0], finalState[1], finalState[2], finalState[3]};
 }

@@ -7,7 +7,7 @@ set(SOURCES
     model/Model.cpp
 )
 
-add_library(modules STATIC
+add_library(modules SHARED
     ${HEADERS}
     ${SOURCES}
 )
