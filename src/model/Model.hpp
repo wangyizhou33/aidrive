@@ -3,15 +3,11 @@
 
 #include <aidrive/Types.hpp>
 #include <boost/numeric/odeint.hpp>
-#include <Eigen/Dense>
 
 #include <vector>
 #include <cmath>
 namespace aidrive
 {
-
-using Vector3f = Eigen::Vector3f;
-using Vector4f = Eigen::Vector4f;
 
 class Integrator
 {

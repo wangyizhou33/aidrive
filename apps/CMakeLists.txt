@@ -10,4 +10,5 @@ target_link_libraries(main
     ImGui
     GLEW::GLEW
     OpenGL::GL
+    modules
 )

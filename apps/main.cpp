@@ -1,16 +1,22 @@
+// GL
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #include <GL/glew.h> // Initialize with glewInit()
 
+// std
 #include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include <Eigen/Dense>
 
+// imgui
 #include <imgui.h>
 #include "imgui_impl_opengl3.h"
 #include "imgui_impl_glfw.h"
+
+// aidrive module headers
+#include <Render.hpp>
 
 static void error_callback(int error, const char* description)
 {
@@ -75,8 +81,7 @@ int main(void)
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
     // Setup Dear ImGui style
-    ImGui::StyleColorsDark();
-    //ImGui::StyleColorsClassic();
+    ImGui::StyleColorsLight(); // Dark, Classic
 
     // Setup Platform/Renderer bindings
     ImGui_ImplGlfw_InitForOpenGL(window, true);
@@ -99,47 +104,14 @@ int main(void)
             // custom rendering
             ImDrawList* draw_list = ImGui::GetWindowDrawList();
 
-            static float sz        = 36.0f;
-            static float thickness = 3.0f;
-            static ImVec4 colf     = ImVec4(1.0f, 1.0f, 0.4f, 1.0f);
-            ImGui::DragFloat("Size", &sz, 0.2f, 2.0f, 72.0f, "%.0f");
-            ImGui::DragFloat("Thickness", &thickness, 0.05f, 1.0f, 8.0f, "%.02f");
-            ImGui::ColorEdit4("Color", &colf.x);
-            const ImVec2 p  = ImGui::GetCursorScreenPos();
-            const ImU32 col = ImColor(colf);
-            float x = p.x + 4.0f, y = p.y + 4.0f;
-            float spacing                   = 10.0f;
-            ImDrawCornerFlags corners_none  = 0;
-            ImDrawCornerFlags corners_all   = ImDrawCornerFlags_All;
-            ImDrawCornerFlags corners_tl_br = ImDrawCornerFlags_TopLeft | ImDrawCornerFlags_BotRight;
-            for (int n = 0; n < 2; n++)
-            {
-                // First line uses a thickness of 1.0f, second line uses the configurable thickness
-                float th = (n == 0) ? 1.0f : thickness;
-                draw_list->AddCircle(ImVec2(x + sz * 0.5f, y + sz * 0.5f), sz * 0.5f, col, 6, th);
-                x += sz + spacing; // Hexagon
-                draw_list->AddCircle(ImVec2(x + sz * 0.5f, y + sz * 0.5f), sz * 0.5f, col, 20, th);
-                x += sz + spacing; // Circle
-                draw_list->AddRect(ImVec2(x, y), ImVec2(x + sz, y + sz), col, 0.0f, corners_none, th);
-                x += sz + spacing; // Square
-                draw_list->AddRect(ImVec2(x, y), ImVec2(x + sz, y + sz), col, 10.0f, corners_all, th);
-                x += sz + spacing; // Square with all rounded corners
-                draw_list->AddRect(ImVec2(x, y), ImVec2(x + sz, y + sz), col, 10.0f, corners_tl_br, th);
-                x += sz + spacing; // Square with two rounded corners
-                draw_list->AddTriangle(ImVec2(x + sz * 0.5f, y), ImVec2(x + sz, y + sz - 0.5f), ImVec2(x, y + sz - 0.5f), col, th);
-                x += sz + spacing; // Triangle
-                draw_list->AddTriangle(ImVec2(x + sz * 0.2f, y), ImVec2(x, y + sz - 0.5f), ImVec2(x + sz * 0.4f, y + sz - 0.5f), col, th);
-                x += sz * 0.4f + spacing; // Thin triangle
-                draw_list->AddLine(ImVec2(x, y), ImVec2(x + sz, y), col, th);
-                x += sz + spacing; // Horizontal line (note: drawing a filled rectangle will be faster!)
-                draw_list->AddLine(ImVec2(x, y), ImVec2(x, y + sz), col, th);
-                x += spacing; // Vertical line (note: drawing a filled rectangle will be faster!)
-                draw_list->AddLine(ImVec2(x, y), ImVec2(x + sz, y + sz), col, th);
-                x += sz + spacing; // Diagonal line
-                draw_list->AddBezierCurve(ImVec2(x, y), ImVec2(x + sz * 1.3f, y + sz * 0.3f), ImVec2(x + sz - sz * 1.3f, y + sz - sz * 0.3f), ImVec2(x + sz, y + sz), col, th);
-                x = p.x + 4;
-                y += sz + spacing;
-            }
+            // mock state
+            // note these are pixel coordinates
+            // need to change later
+            aidrive::Vector3f pose{500.f, 300.f, 3.1415f / 2.0f};
+            aidrive::Rect2f dim{50.f, 20.f};
+
+            aidrive::render::drawRect(draw_list, pose, dim);
+
             ImGui::End();
         }
 
