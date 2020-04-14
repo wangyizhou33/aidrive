@@ -31,3 +31,6 @@ add_subdirectory("src/")
 
 # tests
 add_subdirectory("tests/")
+
+# app
+add_subdirectory("apps/")
