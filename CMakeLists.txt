@@ -36,3 +36,21 @@ add_subdirectory("tests/")
 
 # app
 add_subdirectory("apps/")
+
+# clang-format
+# TODO need a better way to format recursively in subdirectories and define exclude directories
+FIND_PROGRAM(CLANG_FORMAT "clang-format")
+IF(CLANG_FORMAT)
+    ADD_CUSTOM_TARGET(
+        format
+        COMMAND
+        ${CLANG_FORMAT}
+        -i
+        -style=file
+        ${PROJECT_SOURCE_DIR}/apps/*pp
+        ${PROJECT_SOURCE_DIR}/src/model/*pp
+        ${PROJECT_SOURCE_DIR}/src/render/*pp
+        ${PROJECT_SOURCE_DIR}/tests/*pp
+        COMMENT "Auto formatting of all source files"
+    )
+ENDIF()
