@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 
 project(aidrive)
 
-set(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS_INIT} -fPIC")
+set(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS_INIT} -fPIC --std=c++17")
 
 # eigen
 find_package (Eigen3 3.3 REQUIRED NO_MODULE)

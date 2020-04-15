@@ -41,6 +41,9 @@ void testEigen()
     std::cout << m << std::endl;
 }
 
+constexpr uint32_t WINDOW_WIDTH  = 800u;
+constexpr uint32_t WINDOW_HEIGHT = 600u;
+
 int main(void)
 {
 
@@ -57,7 +60,7 @@ int main(void)
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 
-    window = glfwCreateWindow(640, 480, "Simple example", NULL, NULL);
+    window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Simple example", NULL, NULL);
     if (!window)
     {
         glfwTerminate();
@@ -89,6 +92,12 @@ int main(void)
 
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
+    // initialize modules
+    aidrive::render::Renderer m_renderer{};
+    constexpr float32_t PIXEL_PER_METER = 10.f;
+    m_renderer.setPixelPerMeter(PIXEL_PER_METER);
+    m_renderer.setEye({0.0f, 0.0f});
+
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
@@ -98,20 +107,26 @@ int main(void)
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
         {
-            ImGui::Begin("Hello, world!");            // Create a window called "Hello, world!" and append into it.
-            ImGui::Text("This is some useful text."); // Display some text (you can use a format strings too)
+            ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
+            ImGui::SetNextWindowSize(ImVec2(WINDOW_WIDTH, WINDOW_HEIGHT), ImGuiCond_Always);
 
-            // custom rendering
-            ImDrawList* draw_list = ImGui::GetWindowDrawList();
+            ImGui::Begin("Hello, world!"); // Create a window called "Hello, world!" and append into it.
+            {
+                ImGui::Text("This is some useful text."); // Display some text (you can use a format strings too)
 
-            // mock state
-            // note these are pixel coordinates
-            // need to change later
-            aidrive::Vector3f pose{500.f, 300.f, 3.1415f / 2.0f};
-            aidrive::Rect2f dim{50.f, 20.f};
+                // custom rendering
+                ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-            aidrive::render::drawRect(draw_list, pose, dim);
+                m_renderer.setImDrawList(drawList);
 
+                // mock state
+                // note these are pixel coordinates
+                // need to change later
+                aidrive::Vector3f pose{20.f, 5.f, 3.1415f / 2.0f};
+                aidrive::Rect2f dim{5.0f, 2.3f};
+
+                m_renderer.drawRect(pose, dim);
+            }
             ImGui::End();
         }
 
