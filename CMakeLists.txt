@@ -28,6 +28,17 @@ find_package(GLEW REQUIRED) # apt-get install libglfw-dev
 # imgui
 add_subdirectory("3rdparty/imgui/")
 
+# protobuf
+# TODO include protobuf as 3rdparty
+# right now sudo apt install libprotobuf-dev protobuf-compiler
+# Find required protobuf package
+set(protobuf_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+find_package(protobuf CONFIG REQUIRED)
+
+if(protobuf_VERBOSE)
+  message(STATUS "Using Protocol Buffers ${Protobuf_VERSION}")
+endif()
+
 # library
 add_subdirectory("src/")
 
