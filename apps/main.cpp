@@ -92,11 +92,15 @@ int main(void)
 
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
+    // vehicle pose
+    aidrive::Vector3f pose{0.f, 0.f, 0.f};
+    aidrive::Rect2f dim{5.0f, 2.3f};
+
     // initialize modules
-    aidrive::render::Renderer m_renderer{};
+    aidrive::render::Renderer m_renderer{WINDOW_WIDTH, WINDOW_HEIGHT};
     constexpr float32_t PIXEL_PER_METER = 10.f;
     m_renderer.setPixelPerMeter(PIXEL_PER_METER);
-    m_renderer.setEye({0.0f, 0.0f});
+    m_renderer.setEye({pose[0], pose[1]});
 
     while (!glfwWindowShouldClose(window))
     {
@@ -116,14 +120,15 @@ int main(void)
 
                 // custom rendering
                 ImDrawList* drawList = ImGui::GetWindowDrawList();
-
                 m_renderer.setImDrawList(drawList);
 
-                // mock state
-                // note these are pixel coordinates
-                // need to change later
-                aidrive::Vector3f pose{20.f, 5.f, 3.1415f / 2.0f};
-                aidrive::Rect2f dim{5.0f, 2.3f};
+                ImGui::PushItemWidth(150.f);
+                ImGui::SliderFloat("x", &pose[0], -50.0f, 50.0f, "%.1f");
+                ImGui::SameLine();
+                ImGui::SliderFloat("y", &pose[1], -50.0f, 50.0f, "%.1f");
+                ImGui::SameLine();
+                ImGui::SliderAngle("theta", &pose[2], 0.0f, 360.0f, "%.1f");
+                ImGui::PopItemWidth();
 
                 m_renderer.drawRect(pose, dim);
             }

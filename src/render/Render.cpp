@@ -53,8 +53,12 @@ void Renderer::drawRect(const Vector3f& pose,
 
     Matrix2f rot{};
 
-    rot << std::cos(hdg), std::sin(hdg),
-        -std::sin(hdg), std::cos(hdg);
+    rot << std::cos(-hdg), std::sin(-hdg),
+        -std::sin(-hdg), std::cos(-hdg); // negative sign here is to align
+                                         // ImGui window coordinate
+                                         // +x to the right,
+                                         // +y to the bottom,
+                                         // origin at upper left corner
 
     std::vector<Vector2f> vertices{};
     vertices.push_back(pos + rot * Vector2f{dim.length / 2.f, dim.width / 2.f});

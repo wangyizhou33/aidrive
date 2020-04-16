@@ -38,7 +38,14 @@ void drawRect(ImDrawList* drawList,
 class Renderer
 {
 public:
-    Renderer() = default;
+    Renderer(uint32_t width, uint32_t height)
+        : m_width(width)
+        , m_height(height)
+    {
+        m_view(1, 1)       = -1.0f;          // reflection in y;
+        m_projection(0, 2) = m_width / 2.0f; // make sure eye is in the middle of the window
+        m_projection(1, 2) = m_height / 2.0f;
+    }
 
     void setImDrawList(ImDrawList* list);
 
@@ -49,6 +56,9 @@ public:
                   const Rect2f& dim);   // rect dimension)
 
 private:
+    uint32_t m_width{};
+    uint32_t m_height{};
+
     Matrix3f m_view{Matrix3f::Identity()};
     Matrix3f m_projection{Matrix3f::Identity()};
 
