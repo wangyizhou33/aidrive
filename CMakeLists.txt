@@ -13,7 +13,9 @@ add_subdirectory("3rdparty/gtest")
 enable_testing()
 
 # ceres
-add_subdirectory("3rdparty/ceres")
+set(CMAKE_PREFIX_PATH ${CMAKE_SOURCE_DIR}/3rdparty/ceres/ceres-solver/build/install/lib/cmake/)
+find_package(Ceres REQUIRED)
+# add_subdirectory("3rdparty/ceres")
 
 # glfw
 add_subdirectory("3rdparty/glfw/")
@@ -32,7 +34,7 @@ add_subdirectory("3rdparty/imgui/")
 # TODO include protobuf as 3rdparty
 # right now sudo apt install libprotobuf-dev protobuf-compiler
 # Find required protobuf package
-set(protobuf_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+set(protobuf_DIR ${CMAKE_SOURCE_DIR}/cmake)
 find_package(protobuf CONFIG REQUIRED)
 
 if(protobuf_VERBOSE)

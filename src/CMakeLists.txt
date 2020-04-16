@@ -27,7 +27,7 @@ set(HEADERS
 )
 
 set(SOURCES
-    proto/${PROTO_SRCS}
+    # proto/${PROTO_SRCS}
 
     model/Model.cpp
 

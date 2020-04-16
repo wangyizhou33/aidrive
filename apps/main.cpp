@@ -124,9 +124,7 @@ int main(void)
 
                 ImGui::PushItemWidth(150.f);
                 ImGui::SliderFloat("x", &pose[0], -50.0f, 50.0f, "%.1f");
-                ImGui::SameLine();
                 ImGui::SliderFloat("y", &pose[1], -50.0f, 50.0f, "%.1f");
-                ImGui::SameLine();
                 ImGui::SliderAngle("theta", &pose[2], 0.0f, 360.0f, "%.1f");
                 ImGui::PopItemWidth();
 
