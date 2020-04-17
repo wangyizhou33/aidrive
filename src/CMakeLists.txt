@@ -2,7 +2,7 @@
 
 # protobuf definition
 set(PROTOS 
-    proto/addressbook.proto
+    addressbook.proto
 )
 set(PROTO_SRCS "")
 foreach(proto_file ${PROTOS})
@@ -27,7 +27,7 @@ set(HEADERS
 )
 
 set(SOURCES
-    # proto/${PROTO_SRCS}
+    ${PROTO_SRCS}
 
     model/Model.cpp
 

@@ -3,6 +3,7 @@
 
 #include <imgui.h>           // ImDrawList
 #include <aidrive/Types.hpp> // Vector
+#include "addressbook.pb.h"
 
 namespace aidrive
 {
