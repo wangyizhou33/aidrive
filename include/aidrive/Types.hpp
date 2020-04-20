@@ -5,6 +5,7 @@
 #include <Eigen/Dense>
 
 typedef unsigned int uint32_t;
+typedef int long int64_t;
 typedef float float32_t;
 typedef double float64_t;
 
@@ -27,6 +28,21 @@ struct LineSeg2f
 {
     Vector2f v0;
     Vector2f v1;
+};
+
+struct TrajectoryPoint
+{
+    Vector2f pos;
+    float32_t hdg;
+    float32_t v;
+    float32_t a;
+    int64_t t;
+};
+
+struct Trajectory
+{
+    int64_t timestamp; // std::chrono::microseconds
+    std::vector<TrajectoryPoint> points;
 };
 
 } // namespace aidrive

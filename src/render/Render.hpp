@@ -33,6 +33,11 @@ void drawRect(ImDrawList* drawList,
               ImU32 color,
               float32_t thickness);
 
+void drawPolyline(ImDrawList* drawList,
+                  const std::vector<ImVec2>& poly,
+                  ImU32 color,
+                  float32_t thickness);
+
 /**
  * Renderer handles view and projection
  */
@@ -55,6 +60,9 @@ public:
 
     void drawRect(const Vector3f& pose, // 2d pose {x,y,hdg}
                   const Rect2f& dim);   // rect dimension)
+
+    void drawTrajectory(const std::vector<TrajectoryPoint>& ppts,
+                        const Vector3f& pose); // reference frame to world
 
 private:
     uint32_t m_width{};

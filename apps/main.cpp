@@ -96,6 +96,18 @@ int main(void)
     aidrive::Vector3f pose{0.f, 0.f, 0.f};
     aidrive::Rect2f dim{5.0f, 2.3f};
 
+    // trajectory
+    aidrive::Trajectory traj{};
+    // mock straight
+    for (uint32_t i = 0u; i < 100u; ++i)
+    {
+        traj.points.push_back({.pos = {static_cast<float32_t>(i) / 2.0f, 0.0f},
+                               .hdg = 0.0f,
+                               .v   = 5.0f,
+                               .a   = 0.0f,
+                               .t   = 0});
+    }
+
     // initialize modules
     aidrive::render::Renderer m_renderer{WINDOW_WIDTH, WINDOW_HEIGHT};
     constexpr float32_t PIXEL_PER_METER = 10.f;
@@ -129,6 +141,7 @@ int main(void)
                 ImGui::PopItemWidth();
 
                 m_renderer.drawRect(pose, dim);
+                m_renderer.drawTrajectory(traj.points, pose);
             }
             ImGui::End();
         }
