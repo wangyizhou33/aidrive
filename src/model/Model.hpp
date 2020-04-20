@@ -64,6 +64,7 @@ private:
          * @brief combined ode
          * state {x, y, theta, v}
          * input a, delta
+         * variable of integration is t
          */
         void operator()(const std::vector<float32_t>& x,
                         std::vector<float32_t>& dxdt,
@@ -91,6 +92,31 @@ private:
     }; // class CombinedModel
 
 }; // class Model
+
+class CurvatureModel
+{
+public:
+    CurvatureModel(float32_t k)
+        : m_k(k){};
+
+    /**
+     * @brief combined ode
+     * state {x, y, theta}
+     * input k [curvature]
+     * variable of integration is s [m]
+     */
+    void operator()(const std::vector<float32_t>& x,
+                    std::vector<float32_t>& dxds,
+                    float32_t /* s */) const;
+
+private:
+    float32_t m_k;
+}; // CurvatureModel
+
+std::vector<Vector3f> generatePolyline(const Vector3f& pose,
+                                       float32_t k,
+                                       float32_t deltaS,
+                                       float32_t finalS);
 
 } // namespace aidrive
 

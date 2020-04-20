@@ -17,6 +17,7 @@
 
 // aidrive module headers
 #include <render/Render.hpp>
+#include <model/Model.hpp>
 
 static void error_callback(int error, const char* description)
 {
@@ -98,15 +99,7 @@ int main(void)
 
     // trajectory
     aidrive::Trajectory traj{};
-    // mock straight
-    for (uint32_t i = 0u; i < 100u; ++i)
-    {
-        traj.points.push_back({.pos = {static_cast<float32_t>(i) / 2.0f, 0.0f},
-                               .hdg = 0.0f,
-                               .v   = 5.0f,
-                               .a   = 0.0f,
-                               .t   = 0});
-    }
+    float32_t curvature{0.0};
 
     // initialize modules
     aidrive::render::Renderer m_renderer{WINDOW_WIDTH, WINDOW_HEIGHT};
@@ -138,7 +131,25 @@ int main(void)
                 ImGui::SliderFloat("x", &pose[0], -50.0f, 50.0f, "%.1f");
                 ImGui::SliderFloat("y", &pose[1], -50.0f, 50.0f, "%.1f");
                 ImGui::SliderAngle("theta", &pose[2], 0.0f, 360.0f, "%.1f");
+                ImGui::SliderFloat("k", &curvature, -0.3f, 0.3f, "%.3f");
                 ImGui::PopItemWidth();
+
+                // gen traj
+                std::vector<aidrive::Vector3f> poly = aidrive::generatePolyline({0.0f, 0.0f, 0.0f},
+                                                                                curvature,
+                                                                                1.0f,
+                                                                                50.0f);
+
+                // convert
+                traj.points.clear();
+                for (const aidrive::Vector3f& pose : poly)
+                {
+                    traj.points.push_back({.pos = {pose[0], pose[1]},
+                                           .hdg = pose[2],
+                                           .v   = 5.0f,
+                                           .a   = 0.0f,
+                                           .t   = 0});
+                }
 
                 m_renderer.drawRect(pose, dim);
                 m_renderer.drawTrajectory(traj.points, pose);
