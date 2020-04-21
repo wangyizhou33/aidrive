@@ -34,25 +34,11 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action,
         glfwSetWindowShouldClose(window, GLFW_TRUE);
 }
 
-void testEigen()
-{
-    using Eigen::MatrixXd;
-    MatrixXd m(2, 2);
-    m(0, 0) = 3;
-    m(1, 0) = 2.5;
-    m(0, 1) = -1;
-    m(1, 1) = m(1, 0) + m(0, 1);
-    std::cout << m << std::endl;
-}
-
 constexpr uint32_t WINDOW_WIDTH  = 800u;
 constexpr uint32_t WINDOW_HEIGHT = 600u;
 
 int main(void)
 {
-
-    testEigen();
-
     GLFWwindow* window;
 
     glfwSetErrorCallback(error_callback);
@@ -102,7 +88,8 @@ int main(void)
 
     // trajectory
     aidrive::Trajectory traj{};
-    float32_t curvature{0.0};
+    float32_t curvature{0.0f};
+    float32_t initError{0.0f}; // cross-track error
 
     // initialize modules
     aidrive::render::Renderer m_renderer{WINDOW_WIDTH, WINDOW_HEIGHT};
@@ -132,8 +119,9 @@ int main(void)
 
             ImGui::Begin("Hello, world!"); // Create a window called "Hello, world!" and append into it.
             {
-                float32_t framePerSecond = std::accumulate(fps.begin(), fps.end(), 0.0f) / static_cast<float32_t>(MAX_DEQUE_SIZE);
-                ImGui::Text("fps: %f", framePerSecond);
+                float32_t framePerSecond =
+                    std::accumulate(fps.begin(), fps.end(), 0.0f) / static_cast<float32_t>(fps.size());
+                ImGui::Text("fps: %.1f", framePerSecond);
 
                 // custom rendering
                 ImDrawList* drawList = ImGui::GetWindowDrawList();
@@ -144,13 +132,15 @@ int main(void)
                 ImGui::SliderFloat("y", &pose[1], -50.0f, 50.0f, "%.1f");
                 ImGui::SliderAngle("theta", &pose[2], 0.0f, 360.0f, "%.1f");
                 ImGui::SliderFloat("k", &curvature, -0.3f, 0.3f, "%.3f");
+                ImGui::SliderFloat("cte", &initError, -1.0f, 1.0f, "%.3f");
                 ImGui::PopItemWidth();
 
                 // gen traj
-                std::vector<aidrive::Vector3f> poly = aidrive::generatePolyline({0.0f, 0.0f, 0.0f},
-                                                                                curvature,
-                                                                                1.0f,
-                                                                                50.0f);
+                std::vector<aidrive::Vector3f> poly =
+                    aidrive::generatePolyline({0.0f, initError, 0.0f},
+                                              curvature,
+                                              1.0f,
+                                              50.0f);
 
                 // convert
                 traj.points.clear();
