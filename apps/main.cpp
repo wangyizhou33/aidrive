@@ -7,7 +7,9 @@
 #include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <chrono>
+#include <deque>
+#include <numeric>
 #include <Eigen/Dense>
 
 // imgui
@@ -108,8 +110,16 @@ int main(void)
     m_renderer.setPixelPerMeter(PIXEL_PER_METER);
     m_renderer.setEye({pose[0], pose[1]});
 
+    // calc fps
+    // the container contains samples to calc fps
+    // the container acts like a ring buffer
+    std::deque<float32_t> fps{};
+    constexpr size_t MAX_DEQUE_SIZE = 50;
+
     while (!glfwWindowShouldClose(window))
     {
+        auto start = std::chrono::high_resolution_clock::now();
+
         glfwPollEvents();
 
         // Start the Dear ImGui frame
@@ -122,7 +132,8 @@ int main(void)
 
             ImGui::Begin("Hello, world!"); // Create a window called "Hello, world!" and append into it.
             {
-                ImGui::Text("This is some useful text."); // Display some text (you can use a format strings too)
+                float32_t framePerSecond = std::accumulate(fps.begin(), fps.end(), 0.0f) / static_cast<float32_t>(MAX_DEQUE_SIZE);
+                ImGui::Text("fps: %f", framePerSecond);
 
                 // custom rendering
                 ImDrawList* drawList = ImGui::GetWindowDrawList();
@@ -169,6 +180,15 @@ int main(void)
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         glfwSwapBuffers(window);
+
+        auto elapsed = std::chrono::high_resolution_clock::now() - start;
+
+        fps.push_back(1e6f / std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count());
+
+        if (fps.size() > MAX_DEQUE_SIZE)
+        {
+            fps.pop_front(); // make sure the queue has at most MAX_QUEUE_SIZE elements;
+        }
     }
     // Cleanup
     ImGui_ImplOpenGL3_Shutdown();
