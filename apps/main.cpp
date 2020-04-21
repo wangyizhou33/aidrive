@@ -18,6 +18,7 @@
 // aidrive module headers
 #include <render/Render.hpp>
 #include <model/Model.hpp>
+#include <aidrive/Profile.hpp>
 
 static void error_callback(int error, const char* description)
 {

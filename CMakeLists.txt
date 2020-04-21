@@ -61,6 +61,7 @@ IF(CLANG_FORMAT)
         -i
         -style=file
         ${PROJECT_SOURCE_DIR}/apps/*pp
+        ${PROJECT_SOURCE_DIR}/include/aidrive/*pp
         ${PROJECT_SOURCE_DIR}/src/model/*pp
         ${PROJECT_SOURCE_DIR}/src/render/*pp
         ${PROJECT_SOURCE_DIR}/tests/*pp

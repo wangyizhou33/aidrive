@@ -38,6 +38,7 @@ add_library(modules SHARED
     ${HEADERS}
     ${SOURCES}
 )
+
 target_include_directories(modules PUBLIC
     "${CMAKE_SOURCE_DIR}/include/"
     "${CMAKE_CURRENT_SOURCE_DIR}/"
