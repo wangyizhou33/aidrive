@@ -130,5 +130,14 @@ void Renderer::drawTrajectory(const std::vector<TrajectoryPoint>& points,
     render::drawPolyline(m_list, verticesInPixel, color, thickness);
 }
 
+Vector2f Renderer::getCartesianCoordinates(const ImVec2& pixel) const
+{
+    Vector3f in{pixel.x, pixel.y, 1.0f};
+
+    Vector3f out{m_view.inverse() * m_projection.inverse() * in};
+
+    return {out[0], out[1]};
+}
+
 } // namespace render
 } // namespace aidrive

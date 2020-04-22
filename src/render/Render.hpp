@@ -64,6 +64,9 @@ public:
     void drawTrajectory(const std::vector<TrajectoryPoint>& ppts,
                         const Vector3f& pose); // reference frame to world
 
+    // origin at "eye". x to the right, y upward
+    Vector2f getCartesianCoordinates(const ImVec2& pixel) const;
+
 private:
     uint32_t m_width{};
     uint32_t m_height{};

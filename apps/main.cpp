@@ -114,14 +114,27 @@ int main(void)
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
         {
-            ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
-            ImGui::SetNextWindowSize(ImVec2(WINDOW_WIDTH, WINDOW_HEIGHT), ImGuiCond_Always);
+            ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Appearing);
+            ImGui::SetNextWindowSize(ImVec2(WINDOW_WIDTH, WINDOW_HEIGHT), ImGuiCond_Appearing);
 
             ImGui::Begin("Hello, world!"); // Create a window called "Hello, world!" and append into it.
             {
                 float32_t framePerSecond =
                     std::accumulate(fps.begin(), fps.end(), 0.0f) / static_cast<float32_t>(fps.size());
                 ImGui::Text("fps: %.1f", framePerSecond);
+
+                if (ImGui::IsMousePosValid())
+                {
+                    ImVec2 mousePixel          = io.MousePos;
+                    aidrive::Vector2f mousePos = m_renderer.getCartesianCoordinates(mousePixel);
+                    ImGui::Text("Mouse pixel: (%g, %g), cartesian: (%.1f, %.1f) ",
+                                mousePixel.x, mousePixel.y,
+                                mousePos[0], mousePos[1]);
+                }
+                else
+                {
+                    ImGui::Text("Mouse pos: <INVALID>");
+                }
 
                 // custom rendering
                 ImDrawList* drawList = ImGui::GetWindowDrawList();
