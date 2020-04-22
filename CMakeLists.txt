@@ -64,6 +64,7 @@ IF(CLANG_FORMAT)
         ${PROJECT_SOURCE_DIR}/include/aidrive/*pp
         ${PROJECT_SOURCE_DIR}/src/model/*pp
         ${PROJECT_SOURCE_DIR}/src/render/*pp
+        ${PROJECT_SOURCE_DIR}/src/control/*pp
         ${PROJECT_SOURCE_DIR}/tests/*pp
         COMMENT "Auto formatting of all source files"
     )

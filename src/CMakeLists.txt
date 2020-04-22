@@ -24,6 +24,8 @@ set(HEADERS
     model/Model.hpp
 
     render/Render.hpp
+
+    control/Control.hpp
 )
 
 set(SOURCES
@@ -32,6 +34,8 @@ set(SOURCES
     model/Model.cpp
 
     render/Render.cpp
+
+    control/Control.cpp
 )
 
 add_library(modules SHARED
