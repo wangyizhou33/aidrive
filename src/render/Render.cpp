@@ -96,8 +96,9 @@ void Renderer::drawRect(const Vector3f& pose,
     render::drawRect(m_list, verticesInPixel, color, thickness);
 }
 
-void Renderer::drawTrajectory(const std::vector<TrajectoryPoint>& points,
-                              const Vector3f& pose)
+void Renderer::drawPolyline(const std::vector<Vector3f>& points,
+                            const Vector3f& pose,
+                            ImU32 color)
 {
     Vector2f pos{pose[0], pose[1]};
     float32_t hdg = pose[2];
@@ -110,7 +111,7 @@ void Renderer::drawTrajectory(const std::vector<TrajectoryPoint>& points,
     std::vector<Vector2f> vertices{};
     for (auto it = points.cbegin(); it < points.cend(); ++it)
     {
-        vertices.push_back(pos + rot * (it->pos));
+        vertices.push_back(pos + rot * Vector2f{(*it)[0], (*it)[1]});
     }
 
     // convert to pixel coordinates
@@ -125,7 +126,6 @@ void Renderer::drawTrajectory(const std::vector<TrajectoryPoint>& points,
     // now draw
     // TODO: pass via param[in]
     constexpr float32_t thickness = 1.0f;
-    const ImU32 color             = COLOR_GREEN;
 
     render::drawPolyline(m_list, verticesInPixel, color, thickness);
 }

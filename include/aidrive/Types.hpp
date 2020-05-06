@@ -15,6 +15,7 @@ namespace aidrive
 
 using Vector2f = Eigen::Vector2f;
 using Vector3f = Eigen::Vector3f;
+using Vector3d = Eigen::Vector3d;
 using Vector4f = Eigen::Vector4f;
 using Matrix2f = Eigen::Matrix<float32_t, 2, 2>;
 using Matrix3f = Eigen::Matrix<float32_t, 3, 3>;

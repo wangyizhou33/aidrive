@@ -61,8 +61,9 @@ public:
     void drawRect(const Vector3f& pose, // 2d pose {x,y,hdg}
                   const Rect2f& dim);   // rect dimension)
 
-    void drawTrajectory(const std::vector<TrajectoryPoint>& ppts,
-                        const Vector3f& pose); // reference frame to world
+    void drawPolyline(const std::vector<Vector3f>& ppts,
+                      const Vector3f& pose, // reference frame to world
+                      ImU32 color = COLOR_GREEN);
 
     // origin at "eye". x to the right, y upward
     Vector2f getCartesianCoordinates(const ImVec2& pixel) const;

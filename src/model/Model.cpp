@@ -43,6 +43,21 @@ void CurvatureModel::operator()(const std::vector<float32_t>& x,
     dxds[2] = m_k;
 }
 
+std::vector<float32_t> oneStep(const std::vector<float32_t>& x,
+                               float32_t k,
+                               float32_t deltaS)
+{
+    std::vector<float32_t> state = x;
+
+    boost::numeric::odeint::integrate(CurvatureModel(k),
+                                      state,
+                                      0.f,
+                                      deltaS,
+                                      deltaS);
+
+    return state;
+}
+
 std::vector<Vector3f> generatePolyline(const Vector3f& pose,
                                        float32_t k,
                                        float32_t deltaS,

@@ -113,6 +113,10 @@ private:
     float32_t m_k;
 }; // CurvatureModel
 
+std::vector<float32_t> oneStep(const std::vector<float32_t>& x,
+                               float32_t k,
+                               float32_t deltaS);
+
 std::vector<Vector3f> generatePolyline(const Vector3f& pose,
                                        float32_t k,
                                        float32_t deltaS,

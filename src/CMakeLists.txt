@@ -38,6 +38,8 @@ set(SOURCES
     control/Control.cpp
 )
 
+include_directories(${CERES_INCLUDE_DIRS})
+
 add_library(modules SHARED
     ${HEADERS}
     ${SOURCES}
@@ -52,4 +54,5 @@ target_include_directories(modules PUBLIC
 target_link_libraries(modules
     ImGui
     ${PROTOBUF_LIBRARIES}
+    ${CERES_LIBRARIES}
 )

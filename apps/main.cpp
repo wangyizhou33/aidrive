@@ -20,6 +20,7 @@
 // aidrive module headers
 #include <render/Render.hpp>
 #include <model/Model.hpp>
+#include <control/Control.hpp>
 #include <aidrive/Profile.hpp>
 
 static void error_callback(int error, const char* description)
@@ -97,6 +98,8 @@ int main(void)
     m_renderer.setPixelPerMeter(PIXEL_PER_METER);
     m_renderer.setEye({pose[0], pose[1]});
 
+    aidrive::control::Controller ctrl{};
+
     // calc fps
     // the container contains samples to calc fps
     // the container acts like a ring buffer
@@ -145,29 +148,34 @@ int main(void)
                 ImGui::SliderFloat("y", &pose[1], -50.0f, 50.0f, "%.1f");
                 ImGui::SliderAngle("theta", &pose[2], 0.0f, 360.0f, "%.1f");
                 ImGui::SliderFloat("k", &curvature, -0.3f, 0.3f, "%.3f");
-                ImGui::SliderFloat("cte", &initError, -1.0f, 1.0f, "%.3f");
+                ImGui::SliderFloat("cte", &initError, -2.0f, 2.0f, "%.3f");
                 ImGui::PopItemWidth();
 
                 // gen traj
                 std::vector<aidrive::Vector3f> poly =
                     aidrive::generatePolyline({0.0f, initError, 0.0f},
                                               curvature,
-                                              1.0f,
+                                              0.5f,
                                               50.0f);
 
+                // control
+                std::vector<aidrive::Vector3f> predPoly{};
+                TIME_IT("opt", predPoly = ctrl.optimize(poly));
+
                 // convert
-                traj.points.clear();
-                for (const aidrive::Vector3f& pose : poly)
-                {
-                    traj.points.push_back({.pos = {pose[0], pose[1]},
-                                           .hdg = pose[2],
-                                           .v   = 5.0f,
-                                           .a   = 0.0f,
-                                           .t   = 0});
-                }
+                // traj.points.clear();
+                // for (const aidrive::Vector3f& pose : predPoly)
+                // {
+                //     traj.points.push_back({.pos = {pose[0], pose[1]},
+                //                            .hdg = pose[2],
+                //                            .v   = 5.0f,
+                //                            .a   = 0.0f,
+                //                            .t   = 0});
+                // }
 
                 m_renderer.drawRect(pose, dim);
-                m_renderer.drawTrajectory(traj.points, pose);
+                m_renderer.drawPolyline(poly, pose, aidrive::render::COLOR_GREEN);
+                m_renderer.drawPolyline(predPoly, pose, aidrive::render::COLOR_BLUE);
             }
             ImGui::End();
         }
