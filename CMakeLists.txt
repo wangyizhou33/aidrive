@@ -13,7 +13,7 @@ add_subdirectory("3rdparty/gtest")
 enable_testing()
 
 # ceres
-set(CMAKE_PREFIX_PATH ${CMAKE_SOURCE_DIR}/3rdparty/ceres/ceres-solver/build/install/lib/cmake/)
+# set(CMAKE_PREFIX_PATH ${CMAKE_SOURCE_DIR}/3rdparty/ceres/ceres-solver/build/install/lib/cmake/)
 find_package(Ceres REQUIRED)
 # add_subdirectory("3rdparty/ceres")
 # TODO take advantage of EXPORT_BUILD_DIR option

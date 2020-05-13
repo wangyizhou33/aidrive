@@ -19,10 +19,8 @@ lunch() {
 dkb() {
     echo "running dkb ..."
 
-    # local default_display=0.0
-    # DISPLAY=:${default_display}
-
     CMD="docker run -it --rm\
+        --runtime=nvidia
         -v ${HOME}/.Xauthority:/home/user/.Xauthority \
         -v $PROJECT_SOURCE_DIR:$PROJECT_SOURCE_DIR -v $PROJECT_BINARY_DIR:$PROJECT_BINARY_DIR \
         -w `realpath $PWD` -u $(id -u):$(id -g) --rm \

@@ -6,6 +6,18 @@ libprotobuf-dev protobuf-compiler \
 x11-utils libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev \
 libatlas-base-dev libsuitesparse-dev
 
+# Install Ceres from source
+ADD ./3rdparty/ceres/ceres-solver/ source
+
+RUN \
+    cd source && \
+    mkdir ceres-bin && \
+    cd ceres-bin && \
+    cmake ../ && \
+    make -j10 && \
+    make test && \
+    make install
+
 # Clean up APT when done.
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
