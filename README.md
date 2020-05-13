@@ -1,10 +1,9 @@
 # To build
 
+* need docker and nvidia-docker2
+
 * fetch submodules   
 $ git submodule update --init --recursive
-* install ceres under ${aidrive}/3rdparty/ceres/ceres-solver/build/install   
-Installation instruction can be found here
-http://ceres-solver.org/installation.html
 
 * In the top-level project directory, run   
 $ docker build -t aidrive .    
@@ -17,4 +16,5 @@ $ lunch
 
 * prefix any command with a dkb   
 $ dkb cmake ..   
-$ dkb make -j 12
+$ dkb make -j 12   
+$ dkb ./apps/main
