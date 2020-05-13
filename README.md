@@ -12,9 +12,10 @@ $docker image ls
 
 * source the setup script   
 $ source setup.sh   
-$ lunch
 
 * prefix any command with a dkb   
+$ mkdir build   
+$ cd build   
 $ dkb cmake ..   
 $ dkb make -j 12   
 $ dkb ./apps/main

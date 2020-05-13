@@ -6,16 +6,6 @@ build_tool="make"
 
 docker_image="aidrive"
 
-lunch() {
-    echo "running lunch ..."
-
-    local build_dir="${PROJECT_BINARY_DIR}"
-    local cmake_cmd="cmake .."
-
-    cd $build_dir && \
-    ${cmake_cmd}
-}
-
 dkb() {
     echo "running dkb ..."
 
