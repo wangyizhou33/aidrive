@@ -22,6 +22,7 @@
 #include <model/Model.hpp>
 #include <control/Control.hpp>
 #include <aidrive/Profile.hpp>
+#include <planner/SpeedOpt.hpp>
 
 static void error_callback(int error, const char* description)
 {
@@ -100,6 +101,8 @@ int main(void)
 
     aidrive::control::Controller ctrl{};
 
+    aidrive::planner::SpeedOpt speedOpt{};
+
     // calc fps
     // the container contains samples to calc fps
     // the container acts like a ring buffer
@@ -160,7 +163,7 @@ int main(void)
 
                 // control
                 std::vector<aidrive::Vector3f> predPoly{};
-                TIME_IT("opt", predPoly = ctrl.optimize(poly));
+                TIME_IT("path opt", predPoly = ctrl.optimize(poly));
 
                 // convert
                 // traj.points.clear();
@@ -179,13 +182,26 @@ int main(void)
             }
             ImGui::End();
 
+            TIME_IT("speed opt", speedOpt.optimize());
+
             ImGui::SetNextWindowPos(ImVec2(0, WINDOW_HEIGHT - 300), ImGuiCond_Appearing);
-            ImGui::SetNextWindowSize(ImVec2(300, 300), ImGuiCond_Appearing);
+            ImGui::SetNextWindowSize(ImVec2(350, 300), ImGuiCond_Appearing);
 
             ImGui::Begin("2d plot");
             {
-                static float arr[] = { 0.6f, 0.1f, 1.0f, 0.5f, 0.92f, 0.1f, 0.2f };
-                ImGui::PlotLines("", arr, IM_ARRAYSIZE(arr), 0, nullptr, -1.0f, 1.0f, ImVec2(300, 200));
+                const ImVec2 GRAPH_SIZE{300, 60};
+
+                auto d = speedOpt.getD();
+                ImGui::PlotLines("d", &d[0], d.size(), 0, nullptr, 0.0f, 50.0f, GRAPH_SIZE);
+
+                auto v = speedOpt.getV();
+                ImGui::PlotLines("v", &v[0], v.size(), 0, nullptr, 0.0f, 10.0f, GRAPH_SIZE);
+
+                auto a = speedOpt.getA();
+                ImGui::PlotLines("a", &a[0], a.size(), 0, nullptr, -3.0f, 3.0f, GRAPH_SIZE);
+
+                auto j = speedOpt.getJ();
+                ImGui::PlotLines("j", &j[0], j.size(), 0, nullptr, -10.0f, 10.0f, GRAPH_SIZE);
             }
             ImGui::End();
         }

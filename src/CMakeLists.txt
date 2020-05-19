@@ -26,6 +26,8 @@ set(HEADERS
     render/Render.hpp
 
     control/Control.hpp
+
+    planner/SpeedOpt.hpp
 )
 
 set(SOURCES
@@ -36,6 +38,8 @@ set(SOURCES
     render/Render.cpp
 
     control/Control.cpp
+
+    planner/SpeedOpt.cpp
 )
 
 include_directories(${CERES_INCLUDE_DIRS})
