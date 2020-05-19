@@ -4,7 +4,8 @@ RUN apt -y update && apt -y install \
 cmake gcc-7 g++-7 libboost-all-dev libeigen3-dev libgoogle-glog-dev libglew-dev libglfw3-dev \
 libprotobuf-dev protobuf-compiler \
 x11-utils libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev \
-libatlas-base-dev libsuitesparse-dev
+libatlas-base-dev libsuitesparse-dev \
+clang-format
 
 # Install Ceres from source
 ADD ./3rdparty/ceres/ceres-solver/ source

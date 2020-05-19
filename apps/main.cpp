@@ -178,6 +178,16 @@ int main(void)
                 m_renderer.drawPolyline(predPoly, pose, aidrive::render::COLOR_BLUE);
             }
             ImGui::End();
+
+            ImGui::SetNextWindowPos(ImVec2(0, WINDOW_HEIGHT - 300), ImGuiCond_Appearing);
+            ImGui::SetNextWindowSize(ImVec2(300, 300), ImGuiCond_Appearing);
+
+            ImGui::Begin("2d plot");
+            {
+                static float arr[] = { 0.6f, 0.1f, 1.0f, 0.5f, 0.92f, 0.1f, 0.2f };
+                ImGui::PlotLines("", arr, IM_ARRAYSIZE(arr), 0, nullptr, -1.0f, 1.0f, ImVec2(300, 200));
+            }
+            ImGui::End();
         }
 
         // Rendering
