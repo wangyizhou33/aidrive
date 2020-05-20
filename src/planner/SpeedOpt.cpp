@@ -87,7 +87,8 @@ SpeedOpt::SpeedOpt()
     std::fill_n(&m_j[0], OPT_STEPS, 0.0);
 }
 
-void SpeedOpt::optimize()
+void SpeedOpt::optimize(float32_t vInit,
+                        float32_t aInit)
 {
     float64_t d[OPT_STEPS]{};
     float64_t v[OPT_STEPS]{};
@@ -124,11 +125,19 @@ void SpeedOpt::optimize()
             new AutoDiffCostFunction<TrivialResidual, 1, 1>(
                 new TrivialResidual(0.0));
 
-        LossFunction* loss4 = loss2; // intentional
+        problem.AddResidualBlock(cost4, loss2, &d[0]); // always start at d = 0
 
-        problem.AddResidualBlock(cost4, loss4, &d[0]);
-        problem.AddResidualBlock(cost4, loss4, &v[0]);
-        problem.AddResidualBlock(cost4, loss4, &a[0]);
+        CostFunction* cost6 =
+            new AutoDiffCostFunction<TrivialResidual, 1, 1>(
+                new TrivialResidual(vInit));
+
+        problem.AddResidualBlock(cost6, loss2, &v[0]); // match vInit
+
+        CostFunction* cost7 =
+            new AutoDiffCostFunction<TrivialResidual, 1, 1>(
+                new TrivialResidual(aInit));
+
+        problem.AddResidualBlock(cost7, loss2, &a[0]); // match aInit
     }
     for (int32_t tIdx = 1; tIdx < OPT_STEPS; ++tIdx)
     {

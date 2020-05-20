@@ -13,7 +13,8 @@ class SpeedOpt
 public:
     SpeedOpt();
 
-    void optimize();
+    void optimize(float32_t vInit,
+                  float32_t aInit);
 
     std::vector<float32_t> getD() const;
     std::vector<float32_t> getV() const;

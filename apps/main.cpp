@@ -103,6 +103,9 @@ int main(void)
 
     aidrive::planner::SpeedOpt speedOpt{};
 
+    float32_t vInit{0.0f};
+    float32_t aInit{0.0f};
+
     // calc fps
     // the container contains samples to calc fps
     // the container acts like a ring buffer
@@ -123,7 +126,9 @@ int main(void)
             ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Appearing);
             ImGui::SetNextWindowSize(ImVec2(WINDOW_WIDTH, WINDOW_HEIGHT), ImGuiCond_Appearing);
 
-            ImGui::Begin("Hello, world!"); // Create a window called "Hello, world!" and append into it.
+            ImGui::Begin("Hello, world!",
+                         nullptr,
+                         ImGuiWindowFlags_NoBringToFrontOnFocus); // Create a window called "Hello, world!" and append into it.
             {
                 float32_t framePerSecond =
                     std::accumulate(fps.begin(), fps.end(), 0.0f) / static_cast<float32_t>(fps.size());
@@ -152,6 +157,8 @@ int main(void)
                 ImGui::SliderAngle("theta", &pose[2], 0.0f, 360.0f, "%.1f");
                 ImGui::SliderFloat("k", &curvature, -0.3f, 0.3f, "%.3f");
                 ImGui::SliderFloat("cte", &initError, -2.0f, 2.0f, "%.3f");
+                ImGui::SliderFloat("vInit", &vInit, 0.0f, 10.0f, "%.2f");
+                ImGui::SliderFloat("aInit", &aInit, -2.0f, 2.0f, "%.2f");
                 ImGui::PopItemWidth();
 
                 // gen traj
@@ -182,7 +189,7 @@ int main(void)
             }
             ImGui::End();
 
-            TIME_IT("speed opt", speedOpt.optimize());
+            TIME_IT("speed opt", speedOpt.optimize(vInit, aInit));
 
             ImGui::SetNextWindowPos(ImVec2(0, WINDOW_HEIGHT - 300), ImGuiCond_Appearing);
             ImGui::SetNextWindowSize(ImVec2(350, 300), ImGuiCond_Appearing);
