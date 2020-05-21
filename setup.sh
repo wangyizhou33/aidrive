@@ -6,6 +6,7 @@ build_tool="make"
 
 docker_image="aidrive"
 
+#  "docker build"
 dkb() {
     echo "running dkb ..."
 
@@ -13,9 +14,26 @@ dkb() {
         --runtime=nvidia
         -v ${HOME}/.Xauthority:/home/user/.Xauthority \
         -v $PROJECT_SOURCE_DIR:$PROJECT_SOURCE_DIR -v $PROJECT_BINARY_DIR:$PROJECT_BINARY_DIR \
-        -w `realpath $PWD` -u $(id -u):$(id -g) --rm \
+        -w `realpath $PWD` -u $(id -u):$(id -g)\
         -e DISPLAY \
         --net=host \
+        $docker_image \
+        bash -c \"$*\""
+
+    echo ${CMD}
+
+    eval ${CMD}
+}
+
+#  "ci build"
+#  avoid input device 
+#  the following flags are absolutely minimum
+cib() {
+    echo "running cib ..."
+
+    CMD="docker run -i --rm\
+        -v $PROJECT_SOURCE_DIR:$PROJECT_SOURCE_DIR -v $PROJECT_BINARY_DIR:$PROJECT_BINARY_DIR \
+        -w `realpath $PWD` -u $(id -u):$(id -g)\
         $docker_image \
         bash -c \"$*\""
 

@@ -13,11 +13,18 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: submodule
+      run: git submodule update --init --recursive
+    - name: docker
+      run: docker build -t aidrive .
     - name: make
       run: |
+        source setup.sh
         mkdir build && cd build
-        cmake .. -DCMAKE_BUILD_TYPE=Release
-        make -j20
+        cib cmake .. -DCMAKE_BUILD_TYPE=Release
+        cib make -j20
     - name: test
-      run: ctest
-      
+      run: |
+        source setup.sh
+        cd build
+        cib ctest

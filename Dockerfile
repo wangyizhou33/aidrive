@@ -15,7 +15,7 @@ RUN \
     mkdir ceres-bin && \
     cd ceres-bin && \
     cmake ../ && \
-    make -j10 && \
+    make -j20 && \
     make test && \
     make install
 
