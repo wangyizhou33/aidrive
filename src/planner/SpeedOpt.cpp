@@ -9,26 +9,25 @@ namespace planner
 using ceres::AutoDiffCostFunction;
 using ceres::CauchyLoss;
 using ceres::CostFunction;
+using ceres::LossFunction;
 using ceres::Problem;
+using ceres::ScaledLoss;
 using ceres::Solve;
 using ceres::Solver;
-using ceres::LossFunction;
-using ceres::ScaledLoss;
 using ceres::TrivialLoss;
 
 class ProgressCost
 {
 public:
     ProgressCost(int32_t t_, float64_t discount_)
-    : t(t_)
-    , discount(discount_)
-    {};
+        : t(t_)
+        , discount(discount_){};
 
     template <typename T>
     bool operator()(const T* const d,
                     T* residual) const
     {
-         // min |D - d| is effectively max |d|
+        // min |D - d| is effectively max |d|
         residual[0] = T(5) * std::pow(discount, t) * (D - d[0]);
         return true;
     }
@@ -43,7 +42,7 @@ class IntegralCost
 {
 public:
     IntegralCost(float64_t dt_)
-    : dt(dt_) {};
+        : dt(dt_){};
 
     template <typename T>
     bool operator()(const T* const x1, // x_{t+t}
@@ -51,7 +50,7 @@ public:
                     const T* const dx, // dx/dt at t
                     T* residual) const
     {
-         // min |D - d| is effectively max |d|
+        // min |D - d| is effectively max |d|
         residual[0] = x1[0] - (x2[0] + dx[0] * dt);
         return true;
     }
@@ -64,8 +63,7 @@ class TrivialResidual
 {
 public:
     TrivialResidual(float64_t target_)
-    : target(target_)
-    {};
+        : target(target_){};
 
     template <typename T>
     bool operator()(const T* const j,
@@ -77,6 +75,40 @@ public:
 
 private:
     float64_t target{};
+};
+
+// penalize violation of in <= target, or in >= target
+class InequalityResidual
+{
+public:
+    enum Sign
+    {
+        LESS,
+        GREATER
+    };
+
+    InequalityResidual(float64_t target_, Sign sign_ = LESS)
+        : target(target_)
+        , sign(sign_){};
+
+    template <typename T>
+    bool operator()(const T* const in,
+                    T* residual) const
+    {
+        if (sign == LESS)
+        {
+            residual[0] = std::max(T(0.0), in[0] - target);
+        }
+        else // GREATER
+        {
+            residual[0] = std::min(T(0.0), in[0] - target);
+        }
+        return true;
+    }
+
+private:
+    float64_t target{};
+    Sign sign{};
 };
 
 SpeedOpt::SpeedOpt()
@@ -105,10 +137,11 @@ void SpeedOpt::optimize(float32_t vInit,
 
     Problem problem;
 
-    constexpr float64_t DISCOUNT        = 0.9;
-    constexpr float64_t EQUALITY_WEIGHT = 100.0;
-    constexpr float64_t JERK_WEIGHT     = 1.0;
-    constexpr float64_t VEL_WEIGHT      = 1.5;
+    constexpr float64_t DISCOUNT          = 0.9;
+    constexpr float64_t EQUALITY_WEIGHT   = 1000.0;
+    constexpr float64_t INEQUALITY_WEIGHT = 1000.0;
+    constexpr float64_t JERK_WEIGHT       = 1.0;
+    constexpr float64_t VEL_WEIGHT        = 1.5;
 
     CostFunction* cost2 =
         new AutoDiffCostFunction<IntegralCost, 1, 1, 1, 1>(
@@ -116,8 +149,8 @@ void SpeedOpt::optimize(float32_t vInit,
 
     LossFunction* loss2 = new ScaledLoss(
         new TrivialLoss(),
-            EQUALITY_WEIGHT,
-            ceres::TAKE_OWNERSHIP);
+        EQUALITY_WEIGHT,
+        ceres::TAKE_OWNERSHIP);
 
     // initial condition constraint
     {
@@ -139,6 +172,14 @@ void SpeedOpt::optimize(float32_t vInit,
 
         problem.AddResidualBlock(cost7, loss2, &a[0]); // match aInit
     }
+
+    constexpr float64_t ALIM = 1.5f;
+
+    LossFunction* loss8 = new ScaledLoss(
+        new TrivialLoss(),
+        INEQUALITY_WEIGHT,
+        ceres::TAKE_OWNERSHIP);
+
     for (int32_t tIdx = 1; tIdx < OPT_STEPS; ++tIdx)
     {
 
@@ -161,8 +202,8 @@ void SpeedOpt::optimize(float32_t vInit,
 
             LossFunction* loss3 = new ScaledLoss(
                 new TrivialLoss(),
-                    JERK_WEIGHT,
-                    ceres::TAKE_OWNERSHIP);
+                JERK_WEIGHT,
+                ceres::TAKE_OWNERSHIP);
 
             problem.AddResidualBlock(cost3, loss3, &j[tIdx - 1]);
         }
@@ -175,20 +216,33 @@ void SpeedOpt::optimize(float32_t vInit,
 
             LossFunction* loss5 = new ScaledLoss(
                 new TrivialLoss(),
-                    VEL_WEIGHT,
-                    ceres::TAKE_OWNERSHIP);
+                VEL_WEIGHT,
+                ceres::TAKE_OWNERSHIP);
 
             problem.AddResidualBlock(cost5, loss5, &v[tIdx - 1]);
         }
 
-        // TODO add box constraint on a
+        // add box constraint on a
+        {
+            CostFunction* cost8 =
+                new AutoDiffCostFunction<InequalityResidual, 1, 1>(
+                    new InequalityResidual(ALIM, InequalityResidual::LESS));
+
+            problem.AddResidualBlock(cost8, loss8, &a[tIdx - 1]);
+
+            CostFunction* cost9 =
+                new AutoDiffCostFunction<InequalityResidual, 1, 1>(
+                    new InequalityResidual(-ALIM, InequalityResidual::GREATER));
+
+            problem.AddResidualBlock(cost9, loss8, &a[tIdx - 1]);
+        }
     }
 
     // Build and solve the problem.
     Solver::Options options;
     options.linear_solver_type           = ceres::DENSE_QR;
     options.minimizer_progress_to_stdout = false;
-    options.max_num_iterations           = 10;
+    options.max_num_iterations           = 100;
     Solver::Summary summary;
     Solve(options, &problem, &summary);
 
@@ -230,6 +284,5 @@ std::vector<float32_t> SpeedOpt::getJ() const
     return result;
 }
 
-
-} // namespace aidrive
 } // namespace planner
+} // namespace aidrive

@@ -23,7 +23,7 @@ public:
 
 private:
     static constexpr size_t OPT_STEPS = 50;
-    static constexpr float64_t DT = 0.1;
+    static constexpr float64_t DT     = 0.1;
     float64_t m_d[OPT_STEPS]{};
     float64_t m_v[OPT_STEPS]{};
     float64_t m_a[OPT_STEPS]{};
@@ -31,9 +31,7 @@ private:
 
 }; // class SpeedOpt
 
-
-} // namespace aidrive
 } // namespace planner
-
+} // namespace aidrive
 
 #endif // PLANNER_SPEEDOPT_HPP_
