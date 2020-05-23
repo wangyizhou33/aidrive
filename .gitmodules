@@ -10,3 +10,6 @@
 [submodule "3rdparty/glfw/glfw"]
 	path = 3rdparty/glfw/glfw
 	url = https://github.com/glfw/glfw.git
+[submodule "3rdparty/cereal/cereal"]
+	path = 3rdparty/cereal/cereal
+	url = https://github.com/USCiLab/cereal.git

@@ -42,6 +42,9 @@ if(protobuf_VERBOSE)
   message(STATUS "Using Protocol Buffers ${Protobuf_VERSION}")
 endif()
 
+# cereal serialization
+add_subdirectory("3rdparty/cereal")
+
 # library
 add_subdirectory("src/")
 

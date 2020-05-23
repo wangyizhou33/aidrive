@@ -5,7 +5,8 @@ cmake gcc-7 g++-7 libboost-all-dev libeigen3-dev libgoogle-glog-dev libglew-dev 
 libprotobuf-dev protobuf-compiler \
 x11-utils libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev \
 libatlas-base-dev libsuitesparse-dev \
-clang-format
+clang-format \
+gcc-7-multilib g++-7-multilib
 
 # Install Ceres from source
 ADD ./3rdparty/ceres/ceres-solver/ source
@@ -15,7 +16,7 @@ RUN \
     mkdir ceres-bin && \
     cd ceres-bin && \
     cmake ../ && \
-    make -j20 && \
+    make -j10 && \
     make test && \
     make install
 
