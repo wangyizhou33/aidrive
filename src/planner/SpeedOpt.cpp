@@ -174,6 +174,7 @@ void SpeedOpt::optimize(float32_t vInit,
     }
 
     constexpr float64_t ALIM = 1.5f;
+    constexpr float64_t DLIM = 20.0f;
 
     LossFunction* loss8 = new ScaledLoss(
         new TrivialLoss(),
@@ -235,6 +236,15 @@ void SpeedOpt::optimize(float32_t vInit,
                     new InequalityResidual(-ALIM, InequalityResidual::GREATER));
 
             problem.AddResidualBlock(cost9, loss8, &a[tIdx - 1]);
+        }
+
+        // progress constraint
+        {
+            CostFunction* cost10 =
+                new AutoDiffCostFunction<InequalityResidual, 1, 1>(
+                    new InequalityResidual(DLIM, InequalityResidual::LESS));
+
+            problem.AddResidualBlock(cost10, loss8, &d[tIdx]);
         }
     }
 
