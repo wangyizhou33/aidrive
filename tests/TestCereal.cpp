@@ -9,15 +9,40 @@
 #include <cereal/types/vector.hpp>
 #include <fstream>
 
-TEST(TestCereal, example)
+TEST(TestCereal, serialize)
 {
     bool arr[]           = {true, false};
     std::vector<int> vec = {1, 2, 3, 4, 5};
 
-    // cereal::BinaryOutputArchive archive(std::cout);
-    // cereal::XMLOutputArchive archive(std::cout);
-    cereal::JSONOutputArchive archive( std::cout );
+    {
+        std::ofstream os("out.cereal");
 
-    archive(CEREAL_NVP(vec),
-            arr);
+        // cereal::BinaryOutputArchive archiveOut(os);
+        // cereal::XMLOutputArchive archiveOut(os);
+        cereal::JSONOutputArchive archiveOut(os);
+
+        archiveOut(CEREAL_NVP(vec),
+                   arr);
+    }
+
+    {
+        // open the same file
+        std::ifstream is("out.cereal");
+
+        // cereal::BinaryInputArchive archiveIn(is);
+        // cereal::XMLInputArchive archiveIn(is);
+        cereal::JSONInputArchive archiveIn(is);
+
+        std::vector<int> vecIn = {0, 0, 0, 0, 0};
+        bool arrIn[2];
+        archiveIn(vecIn,
+                  arrIn);
+    }
+
+    for (size_t i = 0; i < vec.size(); ++i)
+    {
+        ASSERT_EQ(vec[i], vecIn[i]);
+    }
+    ASSERT_TRUE(arrIn[0]);
+    ASSERT_FALSE(arrIn[1]);
 }
