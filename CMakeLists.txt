@@ -74,3 +74,18 @@ IF(CLANG_FORMAT)
         COMMENT "Auto formatting of all source files"
     )
 ENDIF()
+
+# doxygen
+find_package(Doxygen REQUIRED)
+IF(DOXYGEN_FOUND)
+
+    set(DOXYGEN_EXCLUDE_PATTERNS
+        */.git/*
+        */3rdparty/*)
+
+    doxygen_add_docs(
+        doc
+        ${PROJECT_SOURCE_DIR}
+        COMMENT "Generate man pages"
+    )
+ENDIF()

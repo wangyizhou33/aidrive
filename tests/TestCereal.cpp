@@ -37,12 +37,12 @@ TEST(TestCereal, serialize)
         bool arrIn[2];
         archiveIn(vecIn,
                   arrIn);
-    }
 
-    for (size_t i = 0; i < vec.size(); ++i)
-    {
-        ASSERT_EQ(vec[i], vecIn[i]);
+        for (size_t i = 0; i < vec.size(); ++i)
+        {
+            ASSERT_EQ(vec[i], vecIn[i]);
+        }
+        ASSERT_TRUE(arrIn[0]);
+        ASSERT_FALSE(arrIn[1]);
     }
-    ASSERT_TRUE(arrIn[0]);
-    ASSERT_FALSE(arrIn[1]);
 }
