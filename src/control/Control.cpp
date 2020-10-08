@@ -15,6 +15,7 @@ using ceres::Problem;
 using ceres::Solve;
 using ceres::Solver;
 
+///
 class PathCost
 {
 public:

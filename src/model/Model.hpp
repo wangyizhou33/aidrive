@@ -8,7 +8,7 @@
 #include <cmath>
 namespace aidrive
 {
-
+///
 class Integrator
 {
 public:
@@ -21,6 +21,7 @@ public:
 
 }; // class Integrator
 
+///
 class KinematicModel
 {
 public:
@@ -42,6 +43,7 @@ private:
 
 }; // class KinematicModel
 
+///
 class MotionModel
 {
 
@@ -93,6 +95,7 @@ private:
 
 }; // class Model
 
+///
 class CurvatureModel
 {
 public:

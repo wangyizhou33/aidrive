@@ -8,6 +8,7 @@ namespace aidrive
 namespace planner
 {
 
+///
 class SpeedOpt
 {
 public:

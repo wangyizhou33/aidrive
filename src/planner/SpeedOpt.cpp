@@ -16,6 +16,7 @@ using ceres::Solve;
 using ceres::Solver;
 using ceres::TrivialLoss;
 
+///
 class ProgressCost
 {
 public:
@@ -38,6 +39,7 @@ private:
     static constexpr float64_t D{200.0};
 };
 
+///
 class IntegralCost
 {
 public:
@@ -59,6 +61,7 @@ private:
     float64_t dt{};
 };
 
+///
 class TrivialResidual
 {
 public:
@@ -77,7 +80,7 @@ private:
     float64_t target{};
 };
 
-// penalize violation of in <= target, or in >= target
+/// penalize violation of in <= target, or in >= target
 class InequalityResidual
 {
 public:
