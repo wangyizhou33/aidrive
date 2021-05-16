@@ -23,6 +23,7 @@
 #include <control/Control.hpp>
 #include <aidrive/Profile.hpp>
 #include <planner/SpeedOpt.hpp>
+#include "drivestates.hpp"
 
 static void error_callback(int error, const char* description)
 {
@@ -106,16 +107,22 @@ int main(void)
     float32_t vInit{0.0f};
     float32_t aInit{0.0f};
 
+    // state machine
+    fsm_list::start();
+
     // calc fps
     // the container contains samples to calc fps
     // the container acts like a ring buffer
     std::deque<float32_t> fps{};
     constexpr size_t MAX_DEQUE_SIZE = 50;
 
+    bool throttleOverrideOn{false};
+    bool steerOverrideOn{false};
+    bool waitingOn{false};
+
     while (!glfwWindowShouldClose(window))
     {
         auto start = std::chrono::high_resolution_clock::now();
-
         glfwPollEvents();
 
         // Start the Dear ImGui frame
@@ -209,6 +216,177 @@ int main(void)
 
                 auto j = speedOpt.getJ();
                 ImGui::PlotLines("j", &j[0], j.size(), 0, nullptr, -10.0f, 10.0f, GRAPH_SIZE);
+            }
+            ImGui::End();
+
+            ImGui::SetNextWindowPos(ImVec2(0, WINDOW_HEIGHT - 350), ImGuiCond_Appearing);
+            ImGui::SetNextWindowSize(ImVec2(700, 350), ImGuiCond_Appearing);
+            ImGui::Begin("state machine");
+            {
+                {
+                    ImGui::Text("UI events:");
+                    ImGui::Indent();
+                    if (ImGui::SmallButton("engage l1"))
+                        send_event(EngageL1());
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("engage l2"))
+                        send_event(EngageL2());
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("engage l3"))
+                        send_event(EngageL3());
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("disengage"))
+                        send_event(Disengage());
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("resume"))
+                        send_event(Resume());
+                    if (ImGui::SmallButton("est mission"))
+                        send_event(EstablishMission());
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("act mission"))
+                        send_event(ActivateMission());
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("deact mission"))
+                        send_event(DeactivateMission());
+                    ImGui::Unindent();
+                }
+                {
+                    ImGui::Text("module events:");
+                    ImGui::Indent();
+                    if (ImGui::SmallButton("PlannerReportLonReady"))
+                        send_event(PlannerReportLonReady());
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("PlannerReportLatReady"))
+                        send_event(PlannerReportLatReady());
+                    ImGui::SameLine();
+                    if (ImGui::Checkbox("EnterWaiting", &waitingOn))
+                    {
+                        if (waitingOn)
+                            send_event(WaitingOnEvent());
+                        else
+                            send_event(WaitingOffEvent());
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("EnterHolding"))
+                        send_event(HoldingOnEvent());
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("BrakeOverride"))
+                        send_event(BrakeOverride());
+                    if (ImGui::Checkbox("ThrottleOverride", &throttleOverrideOn))
+                    {
+                        if (throttleOverrideOn)
+                            send_event(ThrottleOverride());
+                        else
+                            send_event(StopThrottleOverride());
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Checkbox("SteerOverride", &steerOverrideOn))
+                    {
+                        if (steerOverrideOn)
+                            send_event(SteerOverride());
+                        else
+                            send_event(StopSteerOverride());
+                    }
+                    ImGui::Unindent();
+                }
+                {
+                    ImGui::Text("TOP:");
+                    ImGui::Indent();
+                    auto highlightByColor = [](TopEnum test) {
+                        ImVec4 color;
+                        color = (test == Top::getCurrentTopState())
+                                    ? ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_RED)
+                                    : ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_BLACK);
+                        return color;
+                    };
+
+                    ImGui::TextColored(highlightByColor(TopEnum::MANUAL), "Man");
+                    ImGui::SameLine();
+                    ImGui::TextColored(highlightByColor(TopEnum::L1), "L1");
+                    ImGui::SameLine();
+                    ImGui::TextColored(highlightByColor(TopEnum::L2), "L2");
+                    ImGui::SameLine();
+                    ImGui::TextColored(highlightByColor(TopEnum::L3), "L3");
+                    ImGui::Unindent();
+                }
+                {
+                    ImGui::Text("LON:");
+                    ImGui::Indent();
+                    auto highlightByColor = [](LonEnum test) {
+                        ImVec4 color;
+                        color = (test == Lon::getCurrentLonState())
+                                    ? ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_RED)
+                                    : ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_BLACK);
+                        return color;
+                    };
+                    ImGui::TextColored(highlightByColor(LonEnum::FAULT), "fault");
+                    ImGui::SameLine();
+                    ImGui::TextColored(highlightByColor(LonEnum::READY), "ready");
+                    ImGui::SameLine();
+                    ImGui::TextColored(highlightByColor(LonEnum::CONTROLLING), "controlling");
+                    ImGui::SameLine();
+                    ImGui::TextColored(highlightByColor(LonEnum::OVERRIDEN), "override");
+                    ImGui::SameLine();
+                    ImGui::TextColored(highlightByColor(LonEnum::WAITING), "waiting");
+                    ImGui::SameLine();
+                    ImGui::TextColored(highlightByColor(LonEnum::HOLDING), "holding");
+                    ImGui::Unindent();
+                }
+                {
+                    ImGui::Text("LAT:");
+                    ImGui::Indent();
+                    auto highlightByColor = [](LatEnum test) {
+                        ImVec4 color;
+                        color = (test == Lat::getCurrentLatState())
+                                    ? ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_RED)
+                                    : ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_BLACK);
+                        return color;
+                    };
+                    ImGui::TextColored(highlightByColor(LatEnum::FAULT), "fault");
+                    ImGui::SameLine();
+                    ImGui::TextColored(highlightByColor(LatEnum::READY), "ready");
+                    ImGui::SameLine();
+                    ImGui::TextColored(highlightByColor(LatEnum::CONTROLLING), "controlling");
+                    ImGui::SameLine();
+                    ImGui::TextColored(highlightByColor(LatEnum::OVERRIDEN), "override");
+                    ImGui::Unindent();
+                }
+                {
+                    ImGui::Text("BP client:");
+                    ImGui::Indent();
+                    auto highlightByColor = [](BPEnum test) {
+                        ImVec4 color;
+                        color = (test == BP::getCurrentState())
+                                    ? ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_RED)
+                                    : ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_BLACK);
+                        return color;
+                    };
+                    ImGui::TextColored(highlightByColor(BPEnum::FAULT), "fault");
+                    ImGui::SameLine();
+                    ImGui::TextColored(highlightByColor(BPEnum::ACC), "ACC");
+                    ImGui::SameLine();
+                    ImGui::TextColored(highlightByColor(BPEnum::ACCLK), "ACCLK");
+                    ImGui::Unindent();
+                }
+                {
+                    ImGui::Text("Mission client:");
+                    ImGui::Indent();
+                    auto highlightByColor = [](MissionEnum test) {
+                        ImVec4 color;
+                        color = (test == Mission::getCurrentState())
+                                    ? ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_RED)
+                                    : ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_BLACK);
+                        return color;
+                    };
+                    ImGui::TextColored(highlightByColor(MissionEnum::OFF), "off");
+                    ImGui::SameLine();
+                    ImGui::TextColored(highlightByColor(MissionEnum::ESTABLISHED), "EST");
+                    ImGui::SameLine();
+                    ImGui::TextColored(highlightByColor(MissionEnum::ACTIVATED), "ACT");
+                    ImGui::SameLine();
+                    ImGui::TextColored(highlightByColor(MissionEnum::ACTIVATED_NEW_ESTABLISHED), "ACT_NEW_EST");
+                    ImGui::Unindent();
+                }
             }
             ImGui::End();
         }
