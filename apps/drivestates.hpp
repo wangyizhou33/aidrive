@@ -23,7 +23,8 @@ enum class TopEnum
     MANUAL,
     L1,
     L2,
-    L3
+    L3,
+    L4
 };
 
 enum class LonEnum
@@ -51,7 +52,9 @@ enum class BPEnum
     INVALID,
     FAULT,
     ACC,
-    ACCLK
+    ACCLK,
+    L3inTransit,
+    L3
 };
 
 enum class MissionEnum
@@ -73,21 +76,36 @@ struct EngageL2 : tinyfsm::Event
 struct EngageL3 : tinyfsm::Event
 {
 };
+struct EngageL4 : tinyfsm::Event
+{
+};
 struct Disengage : tinyfsm::Event
 {
 };
 
 // module event
-struct PlannerReportLonReady : tinyfsm::Event
+struct ReportLonReady : tinyfsm::Event
 {
 };
-struct PlannerReportLatReady : tinyfsm::Event
+struct ReportLatReady : tinyfsm::Event
+{
+};
+struct ReportL3Ready : tinyfsm::Event
+{
+};
+struct ReportL3Fail : tinyfsm::Event
 {
 };
 struct L1OnEvent : tinyfsm::Event
 {
 };
 struct L2OnEvent : tinyfsm::Event
+{
+};
+struct L3Requested : tinyfsm::Event // Top sends this event
+{
+};
+struct BPL3onEvent : tinyfsm::Event // BP sends this event
 {
 };
 struct ThrottleOverride : tinyfsm::Event
@@ -131,8 +149,10 @@ struct Top : public tinyfsm::Fsm<Top>
 {
     virtual void react(EngageL1 const&) { std::cout << "EngageL1 event ignored" << std::endl; };
     virtual void react(EngageL2 const&) { std::cout << "EngageL2 event ignored" << std::endl; };
-    virtual void react(EngageL3 const&) { std::cout << "L3 disabled in configuration in this release" << std::endl; };
+    virtual void react(EngageL3 const&) { std::cout << "EngageL3 event ignored" << std::endl; };
+    virtual void react(EngageL4 const&) { std::cout << "L4 disabled in configuration in this release" << std::endl; };
     virtual void react(Disengage const&) { std::cout << "Disengage event ignored" << std::endl; };
+    virtual void react(BPL3onEvent const&){};
     void react(tinyfsm::Event const&){};
 
     virtual void entry(void){};
@@ -155,6 +175,7 @@ struct Manual : public Top
     };
     virtual void react(EngageL1 const&);
     virtual void react(EngageL2 const&);
+    virtual void react(EngageL3 const&);
 };
 
 struct L1 : public Top
@@ -166,6 +187,7 @@ struct L1 : public Top
     };
 
     virtual void react(EngageL2 const&);
+    virtual void react(EngageL3 const&);
     virtual void react(Disengage const&);
 };
 
@@ -177,7 +199,9 @@ struct L2 : public Top
         m_current = TopEnum::L2;
     };
     virtual void react(EngageL1 const&);
+    virtual void react(EngageL3 const&);
     virtual void react(Disengage const&);
+    virtual void react(BPL3onEvent const&);
 };
 
 struct L3 : public Top
@@ -185,6 +209,17 @@ struct L3 : public Top
     void entry() override
     {
         m_current = TopEnum::L3;
+    };
+    virtual void react(EngageL1 const&);
+    virtual void react(EngageL2 const&);
+    virtual void react(Disengage const&);
+};
+
+struct L4 : public Top
+{
+    void entry() override
+    {
+        m_current = TopEnum::L4;
     };
 };
 
@@ -194,7 +229,7 @@ struct Lon : public tinyfsm::Fsm<Lon>
     void exit(void){};
 
     virtual void react(tinyfsm::Event const&){};
-    virtual void react(PlannerReportLonReady const&) { std::cout << "no op on PlannerReportLonReady event" << std::endl; };
+    virtual void react(ReportLonReady const&) { std::cout << "no op on ReportLonReady event" << std::endl; };
     virtual void react(L2OnEvent const&){};
     virtual void react(L1OnEvent const&){};
     virtual void react(Disengage const&){};
@@ -219,7 +254,7 @@ struct LonFault : public Lon
     {
         m_current = LonEnum::FAULT;
     };
-    void react(PlannerReportLonReady const&) override;
+    void react(ReportLonReady const&) override;
 };
 
 struct LonReady : public Lon
@@ -279,7 +314,7 @@ struct Lat : public tinyfsm::Fsm<Lat>
     void exit(void){};
 
     virtual void react(tinyfsm::Event const&){};
-    virtual void react(PlannerReportLatReady const&) { std::cout << "no op on PlannerReportLatReady event" << std::endl; };
+    virtual void react(ReportLatReady const&) { std::cout << "no op on ReportLatReady event" << std::endl; };
     virtual void react(L2OnEvent const&){};
     virtual void react(L1OnEvent const&){};
     virtual void react(Disengage const&){};
@@ -299,7 +334,7 @@ struct LatFault : public Lat
     {
         m_current = LatEnum::FAULT;
     };
-    void react(PlannerReportLatReady const&) override;
+    void react(ReportLatReady const&) override;
 };
 
 struct LatReady : public Lat
@@ -339,9 +374,12 @@ struct BP : public tinyfsm::Fsm<BP>
     void exit(void){};
 
     virtual void react(tinyfsm::Event const&){};
+    virtual void react(L3Requested const&){};
     virtual void react(L2OnEvent const&){};
     virtual void react(L1OnEvent const&){};
     virtual void react(Disengage const&){};
+    virtual void react(ReportL3Ready const&){};
+    virtual void react(ReportL3Fail const&){};
 
     static BPEnum getCurrentState() { return m_current; };
 
@@ -376,6 +414,31 @@ struct BPACCLK : public BP
     {
         m_current = BPEnum::ACCLK;
     };
+    void react(L3Requested const&) override;
+    void react(L1OnEvent const&) override;
+    void react(Disengage const&) override;
+};
+
+struct BPL3inTransit : public BP
+{
+    void entry() override
+    {
+        m_current = BPEnum::L3inTransit;
+    };
+    void react(ReportL3Ready const&) override;
+    void react(ReportL3Fail const&) override;
+    void react(L2OnEvent const&) override;
+    void react(L1OnEvent const&) override;
+    void react(Disengage const&) override;
+};
+
+struct BPL3 : public BP
+{
+    void entry() override
+    {
+        m_current = BPEnum::L3;
+    };
+    void react(L2OnEvent const&) override;
     void react(L1OnEvent const&) override;
     void react(Disengage const&) override;
 };
@@ -456,6 +519,15 @@ void Manual::react(EngageL2 const&)
     }
 };
 
+void Manual::react(EngageL3 const&)
+{
+    react(EngageL2());
+    if (m_current == TopEnum::L2)
+    {
+        send_event(L3Requested());
+    }
+}
+
 void L1::react(EngageL2 const&)
 {
     if (Lat::getCurrentLatState() == LatEnum::READY)
@@ -467,6 +539,14 @@ void L1::react(EngageL2 const&)
         std::cout << "EngageL2 event is rejected" << std::endl;
     }
 };
+void L1::react(EngageL3 const&)
+{
+    react(EngageL2());
+    if (m_current == TopEnum::L2)
+    {
+        send_event(L3Requested());
+    }
+}
 void L1::react(Disengage const&)
 {
     transit<Manual>();
@@ -475,7 +555,27 @@ void L2::react(EngageL1 const&)
 {
     transit<L1>();
 };
+void L2::react(EngageL3 const&)
+{
+    send_event(L3Requested());
+}
 void L2::react(Disengage const&)
+{
+    transit<Manual>();
+};
+void L2::react(BPL3onEvent const&)
+{
+    transit<L3>();
+}
+void L3::react(EngageL1 const&)
+{
+    transit<L1>();
+};
+void L3::react(EngageL2 const&)
+{
+    transit<L2>();
+}
+void L3::react(Disengage const&)
 {
     transit<Manual>();
 };
@@ -486,7 +586,7 @@ void Lon::react(BrakeOverride const&)
     transit<LonFault>();
 }
 
-void LonFault::react(PlannerReportLonReady const&)
+void LonFault::react(ReportLonReady const&)
 {
     transit<LonReady>();
 }
@@ -535,7 +635,7 @@ void LonHolding::react(ThrottleOverride const&)
     transit<LonOverriden>();
 }
 
-void LatFault::react(PlannerReportLatReady const&)
+void LatFault::react(ReportLatReady const&)
 {
     transit<LatReady>();
 }
@@ -589,6 +689,44 @@ void BPACCLK::react(L1OnEvent const&)
     transit<BPACC>();
 }
 void BPACCLK::react(Disengage const&)
+{
+    transit<BPFault>();
+}
+void BPACCLK::react(L3Requested const&)
+{
+    transit<BPL3inTransit>();
+}
+
+void BPL3inTransit::react(L1OnEvent const&)
+{
+    transit<BPACC>();
+}
+void BPL3inTransit::react(L2OnEvent const&)
+{
+    transit<BPACCLK>();
+}
+void BPL3inTransit::react(Disengage const&)
+{
+    transit<BPFault>();
+}
+void BPL3inTransit::react(ReportL3Ready const&)
+{
+    transit<BPL3>();
+    send_event(BPL3onEvent());
+}
+void BPL3inTransit::react(ReportL3Fail const&)
+{
+    transit<BPACCLK>();
+}
+void BPL3::react(L1OnEvent const&)
+{
+    transit<BPACC>();
+}
+void BPL3::react(L2OnEvent const&)
+{
+    transit<BPACCLK>();
+}
+void BPL3::react(Disengage const&)
 {
     transit<BPFault>();
 }

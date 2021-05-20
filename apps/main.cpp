@@ -220,7 +220,7 @@ int main(void)
             ImGui::End();
 
             ImGui::SetNextWindowPos(ImVec2(0, WINDOW_HEIGHT - 350), ImGuiCond_Appearing);
-            ImGui::SetNextWindowSize(ImVec2(700, 350), ImGuiCond_Appearing);
+            ImGui::SetNextWindowSize(ImVec2(750, 350), ImGuiCond_Appearing);
             ImGui::Begin("state machine");
             {
                 {
@@ -234,6 +234,9 @@ int main(void)
                     ImGui::SameLine();
                     if (ImGui::SmallButton("engage l3"))
                         send_event(EngageL3());
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("engage l4"))
+                        send_event(EngageL4());
                     ImGui::SameLine();
                     if (ImGui::SmallButton("disengage"))
                         send_event(Disengage());
@@ -253,11 +256,17 @@ int main(void)
                 {
                     ImGui::Text("module events:");
                     ImGui::Indent();
-                    if (ImGui::SmallButton("PlannerReportLonReady"))
-                        send_event(PlannerReportLonReady());
+                    if (ImGui::SmallButton("ReportLonReady"))
+                        send_event(ReportLonReady());
                     ImGui::SameLine();
-                    if (ImGui::SmallButton("PlannerReportLatReady"))
-                        send_event(PlannerReportLatReady());
+                    if (ImGui::SmallButton("ReportLatReady"))
+                        send_event(ReportLatReady());
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("ReportL3Ready"))
+                        send_event(ReportL3Ready());
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("ReportL3Fail"))
+                        send_event(ReportL3Fail());
                     ImGui::SameLine();
                     if (ImGui::Checkbox("EnterWaiting", &waitingOn))
                     {
@@ -269,9 +278,9 @@ int main(void)
                     ImGui::SameLine();
                     if (ImGui::SmallButton("EnterHolding"))
                         send_event(HoldingOnEvent());
-                    ImGui::SameLine();
                     if (ImGui::SmallButton("BrakeOverride"))
                         send_event(BrakeOverride());
+                    ImGui::SameLine();
                     if (ImGui::Checkbox("ThrottleOverride", &throttleOverrideOn))
                     {
                         if (throttleOverrideOn)
@@ -307,6 +316,8 @@ int main(void)
                     ImGui::TextColored(highlightByColor(TopEnum::L2), "L2");
                     ImGui::SameLine();
                     ImGui::TextColored(highlightByColor(TopEnum::L3), "L3");
+                    ImGui::SameLine();
+                    ImGui::TextColored(highlightByColor(TopEnum::L4), "L4");
                     ImGui::Unindent();
                 }
                 {
@@ -366,6 +377,10 @@ int main(void)
                     ImGui::TextColored(highlightByColor(BPEnum::ACC), "ACC");
                     ImGui::SameLine();
                     ImGui::TextColored(highlightByColor(BPEnum::ACCLK), "ACCLK");
+                    ImGui::SameLine();
+                    ImGui::TextColored(highlightByColor(BPEnum::L3inTransit), "L3inTransit");
+                    ImGui::SameLine();
+                    ImGui::TextColored(highlightByColor(BPEnum::L3), "L3");
                     ImGui::Unindent();
                 }
                 {
