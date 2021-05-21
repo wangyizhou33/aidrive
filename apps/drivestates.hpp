@@ -6,9 +6,10 @@ struct Lon;
 struct Lat;
 struct BP;
 struct Mission;
+struct AEB;
 
 // Set up state machines
-using fsm_list = tinyfsm::FsmList<Top, Lon, Lat, BP, Mission>;
+using fsm_list = tinyfsm::FsmList<Top, Lon, Lat, BP, Mission, AEB>;
 
 template <typename E>
 void send_event(E const& event)
@@ -64,6 +65,14 @@ enum class MissionEnum
     ESTABLISHED,
     ACTIVATED,
     ACTIVATED_NEW_ESTABLISHED
+};
+
+enum class AEBEnum
+{
+    INVALID,
+    OFF,
+    MONITORING,
+    ACTUATING
 };
 
 // UI event
@@ -142,6 +151,9 @@ struct ActivateMission : tinyfsm::Event
 {
 };
 struct DeactivateMission : tinyfsm::Event
+{
+};
+struct AEBTrigger : tinyfsm::Event
 {
 };
 
@@ -223,6 +235,7 @@ struct L4 : public Top
     };
 };
 
+struct LonControlling;
 struct Lon : public tinyfsm::Fsm<Lon>
 {
     virtual void entry(void){};
@@ -240,6 +253,7 @@ struct Lon : public tinyfsm::Fsm<Lon>
     virtual void react(WaitingOffEvent const&){};
     virtual void react(HoldingOnEvent const&){};
     virtual void react(Resume const&){};
+    virtual void react(AEBTrigger const&) { transit<LonControlling>(); };
 
     static LonEnum getCurrentLonState() { return m_current; };
 
@@ -492,6 +506,47 @@ struct MissionActNewEst : public Mission
         m_current = MissionEnum::ACTIVATED_NEW_ESTABLISHED;
     };
     void react(ActivateMission const&) override;
+};
+
+struct AEB : public tinyfsm::Fsm<AEB>
+{
+    virtual void entry(void){};
+    void exit(void){};
+
+    virtual void react(tinyfsm::Event const&){};
+    virtual void react(AEBTrigger const&){};
+    virtual void react(L2OnEvent const&){};
+
+    static AEBEnum getCurrentState() { return m_current; };
+
+protected:
+    static AEBEnum m_current;
+};
+AEBEnum AEB::m_current = AEBEnum::MONITORING;
+
+struct AEBOff : public AEB
+{
+    void entry() override
+    {
+        m_current = AEBEnum::OFF;
+    };
+};
+struct AEBMonitoring : public AEB
+{
+    void entry() override
+    {
+        m_current = AEBEnum::MONITORING;
+    };
+
+    void react(AEBTrigger const&) override;
+    void react(L2OnEvent const&) override;
+};
+struct AEBActuating : public AEB
+{
+    void entry() override
+    {
+        m_current = AEBEnum::ACTUATING;
+    };
 };
 
 void Manual::react(EngageL1 const&)
@@ -748,6 +803,15 @@ void MissionActNewEst::react(ActivateMission const&)
     transit<MissionAct>();
 }
 
+void AEBMonitoring::react(L2OnEvent const&)
+{
+    transit<AEBOff>();
+}
+void AEBMonitoring::react(AEBTrigger const&)
+{
+    transit<AEBActuating>();
+}
+
 // ----------------------------------------------------------------------------
 // Initial state definition
 //
@@ -756,3 +820,4 @@ FSM_INITIAL_STATE(Lon, LonFault)
 FSM_INITIAL_STATE(Lat, LatFault)
 FSM_INITIAL_STATE(BP, BPFault)
 FSM_INITIAL_STATE(Mission, MissionOff)
+FSM_INITIAL_STATE(AEB, AEBMonitoring)

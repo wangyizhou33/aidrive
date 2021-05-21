@@ -296,6 +296,9 @@ int main(void)
                         else
                             send_event(StopSteerOverride());
                     }
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("AEBTrigger"))
+                        send_event(AEBTrigger());
                     ImGui::Unindent();
                 }
                 {
@@ -330,7 +333,7 @@ int main(void)
                                     : ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_BLACK);
                         return color;
                     };
-                    ImGui::TextColored(highlightByColor(LonEnum::FAULT), "fault");
+                    ImGui::TextColored(highlightByColor(LonEnum::FAULT), "off");
                     ImGui::SameLine();
                     ImGui::TextColored(highlightByColor(LonEnum::READY), "ready");
                     ImGui::SameLine();
@@ -353,7 +356,7 @@ int main(void)
                                     : ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_BLACK);
                         return color;
                     };
-                    ImGui::TextColored(highlightByColor(LatEnum::FAULT), "fault");
+                    ImGui::TextColored(highlightByColor(LatEnum::FAULT), "off");
                     ImGui::SameLine();
                     ImGui::TextColored(highlightByColor(LatEnum::READY), "ready");
                     ImGui::SameLine();
@@ -372,7 +375,7 @@ int main(void)
                                     : ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_BLACK);
                         return color;
                     };
-                    ImGui::TextColored(highlightByColor(BPEnum::FAULT), "fault");
+                    ImGui::TextColored(highlightByColor(BPEnum::FAULT), "off");
                     ImGui::SameLine();
                     ImGui::TextColored(highlightByColor(BPEnum::ACC), "ACC");
                     ImGui::SameLine();
@@ -400,6 +403,24 @@ int main(void)
                     ImGui::TextColored(highlightByColor(MissionEnum::ACTIVATED), "ACT");
                     ImGui::SameLine();
                     ImGui::TextColored(highlightByColor(MissionEnum::ACTIVATED_NEW_ESTABLISHED), "ACT_NEW_EST");
+                    ImGui::Unindent();
+                }
+                {
+                    ImGui::Text("AEB client");
+                    ImGui::Indent();
+                    auto highlightByColor = [](AEBEnum test) {
+                        ImVec4 color;
+                        color = (test == AEB::getCurrentState())
+                                    ? ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_RED)
+                                    : ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_BLACK);
+                        return color;
+                    };
+                    ImGui::TextColored(highlightByColor(AEBEnum::OFF), "off");
+                    ImGui::SameLine();
+                    ImGui::TextColored(highlightByColor(AEBEnum::MONITORING), "monitoring");
+                    ImGui::SameLine();
+                    ImGui::TextColored(highlightByColor(AEBEnum::ACTUATING), "actuating");
+                    ImGui::SameLine();
                     ImGui::Unindent();
                 }
             }
