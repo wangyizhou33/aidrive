@@ -60,3 +60,5 @@ target_link_libraries(modules
     ${PROTOBUF_LIBRARIES}
     ${CERES_LIBRARIES}
 )
+
+add_subdirectory(newton)
