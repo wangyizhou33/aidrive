@@ -59,7 +59,8 @@ void Renderer::setPixelPerMeter(float32_t pm)
 }
 
 void Renderer::drawRect(const Vector3f& pose,
-                        const Rect2f& dim)
+                        const Rect2f& dim,
+                        ImU32 color)
 {
     Vector2f pos{pose[0], pose[1]};
     float32_t hdg = pose[2];
@@ -90,8 +91,7 @@ void Renderer::drawRect(const Vector3f& pose,
 
     // now draw
     // TODO: pass via param[in]
-    constexpr float32_t thickness = 3.0f;
-    const ImU32 color             = COLOR_BLACK;
+    constexpr float32_t thickness = 1.0f;
 
     render::drawRect(m_list, verticesInPixel, color, thickness);
 }
@@ -117,13 +117,15 @@ void Renderer::drawPolyline(const std::vector<Vector3f>& points,
     // convert to pixel coordinates
     std::vector<ImVec2> verticesInPixel{};
 
+    Rect2f smallRect{0.2f, 0.2f};
     for (const Vector2f& v : vertices)
     {
         Vector3f vNew = m_projection * m_view * Vector3f{v[0], v[1], 1.0f};
         verticesInPixel.push_back(convert(vNew));
+        drawRect(Vector3f{v[0], v[1], 0.0f}, smallRect, color); // draw points
     }
 
-    // now draw
+    // now draw line
     // TODO: pass via param[in]
     constexpr float32_t thickness = 1.0f;
 

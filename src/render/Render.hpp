@@ -59,7 +59,8 @@ public:
     void setPixelPerMeter(float32_t pm);
 
     void drawRect(const Vector3f& pose, // 2d pose {x,y,hdg}
-                  const Rect2f& dim);   // rect dimension)
+                  const Rect2f& dim,    // rect dimension)
+                  ImU32 color = COLOR_BLACK);  
 
     void drawPolyline(const std::vector<Vector3f>& ppts,
                       const Vector3f& pose, // reference frame to world

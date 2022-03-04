@@ -19,3 +19,4 @@ $ cd build
 $ dkb cmake ..   
 $ dkb make -j 12   
 $ dkb ./apps/main
+$ dkb ./src/newton/TrajectoryOptimizerTests

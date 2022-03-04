@@ -543,6 +543,10 @@ class trajectoryOptimizer : public dampedOptimizerBanded<T, 2 * N, UB, 2 * HL>
         actorAvoidanceP.printDistanceToVelocityTable(progressP.k_p);
     }
 
+    T getDeltaT() const {return delta_t;};
+    progressCostParameters<T, N>& getProgressCostParameters() {return progressP;};
+    smoothnessCostParameters<T, SWFT>& getSmoothnessCostParameters() {return smoothP;};
+    limitCostParameters<T, LBFT>& getLimitCostParameters() {return limitP;};
     progressCostParameters<T, N> progressP;
     limitCostParameters<T, LBFT> limitP;
     smoothnessCostParameters<T, SWFT> smoothP;
