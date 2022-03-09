@@ -120,7 +120,7 @@ int main(void)
 
     // vehicle pose
     aidrive::Vector3f pose{0.f, 0.f, 0.f};
-    aidrive::Rect2f dim{5.0f, 2.3f};
+    aidrive::Rect2f dim{5.0f, 2.3f}; // vehicle dimension
 
     // trajectory
     aidrive::Trajectory traj{};
@@ -296,6 +296,8 @@ int main(void)
                         smoothP = topt.getSmoothnessCostParameters();
                     limitCostParameters<float64_t, scalarFunctionSquaredBarrier<float64_t>>&
                         limitP = topt.getLimitCostParameters();
+                    actorAvoidanceCostParameters<float64_t, scalarFunctionSquaredBarrier<float64_t>, scalarFunctionSquaredBarrier<float64_t>, scalarFunctionSquaredBarrier<float64_t>, scalarFunctionSquaredBarrier<float64_t>>
+                        actorP = topt.getActorAvoidanceCostParameters();
 
                     ImGui::PushItemWidth(50.f);
                     ImGui::InputDouble("k_p", &progressP.k_p, 0.0, 0.0, "%.4f");
@@ -309,6 +311,7 @@ int main(void)
                     ImGui::InputDouble("v_ideal", &limitP.lon_v_ideal, 0.0, 0.0, "%.1f");
                     ImGui::SameLine();
                     ImGui::InputDouble("a_ideal", &limitP.lon_a_ideal, 0.0, 0.0, "%.1f");
+                    ImGui::PopItemWidth();
                     smoothP.setDefault(1.0 / delta_t,
                                        SMOOTHNESS_COST_WEIGHT_LONG_POSITION_DEFAULT,
                                        SMOOTHNESS_COST_WEIGHT_LAT_POSITION_DEFAULT,
@@ -316,7 +319,9 @@ int main(void)
                                        SMOOTHNESS_COST_WEIGHT_LAT_VELOCITY_DEFAULT,
                                        a_long);
                     limitP.prepare(); // prepare must be called if any attribute of limitP is changed
-                    ImGui::PopItemWidth();
+                    actorP.setDefaultBySetPoint(progressP.k_p);
+                    // this tunes time-gap
+                    actorP.printDistanceToVelocityTable(progressP.k_p);
 
                     // lateral weight
                     for (size_t i = 0; i < 30; ++i)

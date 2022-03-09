@@ -547,6 +547,8 @@ class trajectoryOptimizer : public dampedOptimizerBanded<T, 2 * N, UB, 2 * HL>
     progressCostParameters<T, N>& getProgressCostParameters() {return progressP;};
     smoothnessCostParameters<T, SWFT>& getSmoothnessCostParameters() {return smoothP;};
     limitCostParameters<T, LBFT>& getLimitCostParameters() {return limitP;};
+    actorAvoidanceCostParameters<T, BFT_F, BFT_B, BFT_L, BFT_R>& getActorAvoidanceCostParameters() {return actorAvoidanceP;};
+
     progressCostParameters<T, N> progressP;
     limitCostParameters<T, LBFT> limitP;
     smoothnessCostParameters<T, SWFT> smoothP;
