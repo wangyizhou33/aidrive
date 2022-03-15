@@ -25,6 +25,7 @@
 #include <planner/SpeedOpt.hpp>
 #include <newton/TrajectoryOptimizer.h>
 #include "drivestates.hpp"
+#include <unstructure/HybridAStar.hpp>
 
 static void error_callback(int error, const char* description)
 {
@@ -56,6 +57,16 @@ std::vector<aidrive::Vector3f> convertToTrajectory(T* arr)
                                         0.0f});
     }
 
+    return out;
+}
+
+std::vector<aidrive::Vector3f> convertToTrajectory(const std::vector<aidrive::Vector2f>& in)
+{
+    std::vector<aidrive::Vector3f> out{};
+    for (const auto& e : in)
+    {
+        out.push_back(aidrive::Vector3f{e[0], e[1], 0.0f});
+    }
     return out;
 }
 
@@ -203,6 +214,25 @@ int main(void)
     }
     topt.setLaterals(LatFun, LatWeight, nrLaterals);
 
+    HybridAStar astar{};
+    HybridAStar::Params aStarParams{};
+
+    int32_t numSteeringAngles = 1;
+    float32_t angleTolerance  = 10.0f;
+    astar.init(aStarParams.maxNumNodes, aStarParams.carTurningRadius, numSteeringAngles,
+               aStarParams.cellSize, 1, angleTolerance,
+               aStarParams.distWeight, aStarParams.dirSwitchCost,
+               aStarParams.backwardsMultiplier, true,
+               aStarParams.maxNumCollisionCells, aStarParams.maxPathLength);
+
+    // green curve
+    // gen traj
+    std::vector<aidrive::Vector3f> poly =
+        aidrive::generatePolyline({0.0f, initError, 0.0f},
+                                  curvature,
+                                  0.5f,
+                                  50.0f);
+
     while (!glfwWindowShouldClose(window))
     {
         auto start = std::chrono::high_resolution_clock::now();
@@ -260,23 +290,42 @@ int main(void)
                 ImGui::SameLine();
                 ImGui::SliderFloat("obj y", &objP[1], 0.f, 50.0f, "%.1f");
                 ImGui::SameLine();
+                ImGui::SliderFloat("obj theta", &objP[2], -3.14, 3.14, "%.1f");
+                ImGui::SameLine();
                 ImGui::SliderFloat("obj vx", &objV[0], 0.f, 30.0f, "%.1f");
                 ImGui::SameLine();
                 ImGui::SliderFloat("obj vy", &objV[1], 0.f, 30.0f, "%.1f");
+
+                if (ImGui::SmallButton("Plan A*"))
+                {
+                    std::cout << "Plan A* now." << std::endl;
+                    int32_t reedsSheppN = 100;
+                    astar.findPath(aidrive::Vector2f{pose[0], pose[1]},
+                                   aidrive::Vector2f{std::cos(pose[2]), std::sin(pose[2])},
+                                   DrivingState::STANDING,
+                                   aidrive::Vector2f{objP[0], objP[1]},
+                                   aidrive::Vector2f{std::cos(objP[2]), std::sin(objP[2])}, // can expose this later
+                                   DrivingState::STANDING,
+                                   reedsSheppN,
+                                   0);
+
+                    uint32_t cnt = astar.getPathCount();
+                    std::vector<aidrive::Vector2f> newPath(cnt);
+                    std::vector<aidrive::Vector2f> newHeadings(cnt);
+                    std::vector<DrivingState> newDirs(cnt);
+                    astar.getPath(&newPath[0].x(), &newHeadings[0].x(), &newDirs[0], cnt);
+
+                    poly = convertToTrajectory(newPath);
+                }
                 ImGui::PopItemWidth();
 
-                // gen traj
-                std::vector<aidrive::Vector3f> poly =
-                    aidrive::generatePolyline({0.0f, initError, 0.0f},
-                                              curvature,
-                                              0.5f,
-                                              50.0f);
                 // draw ego
                 m_renderer.drawRect(pose, dim);
                 // draw obstacle
                 m_renderer.drawRect(objP, dim);
                 // draw reference
-                m_renderer.drawPolyline(poly, pose, aidrive::render::COLOR_GREEN);
+                m_renderer.drawPolyline(poly, aidrive::Vector3f{0.0f, 0.0f, 0.0f}, aidrive::render::COLOR_GREEN);
+                // don't need to tf the astar path to global.
 
                 if (!useTrajOpt)
                 {
@@ -321,7 +370,7 @@ int main(void)
                     limitP.prepare(); // prepare must be called if any attribute of limitP is changed
                     actorP.setDefaultBySetPoint(progressP.k_p);
                     // this tunes time-gap
-                    actorP.printDistanceToVelocityTable(progressP.k_p);
+                    // actorP.printDistanceToVelocityTable(progressP.k_p);
 
                     // lateral weight
                     for (size_t i = 0; i < 30; ++i)

@@ -16,4 +16,5 @@ target_link_libraries(main
     GLEW::GLEW
     OpenGL::GL
     modules
+    HybridAStar
 )
