@@ -9,6 +9,8 @@
 #include <unordered_map>
 #include <queue> // priority_queue
 #include <ReedsShepp.hpp>
+#include "DStarLite.hpp"
+#include <memory> // shared_ptr
 
 using Vector2f = aidrive::Vector2f;
 using Matrix2f = aidrive::Matrix2f;
@@ -339,10 +341,10 @@ public:
     /**
         \brief DStarLite path finder so its nodes can be read by user
     */
-    // std::shared_ptr<DStarLite> getDStarLite()
-    // {
-    //     return m_DStarLite;
-    // }
+    std::shared_ptr<DStarLite> getDStarLite()
+    {
+        return m_DStarLite;
+    }
 
     /**
         \brief Return whether found path is reedsShepp
@@ -432,10 +434,15 @@ private:
     IsDrivableCallback m_isDrivable;
     void* m_isDrivableUserData;
 
+    bool isDrivable(const float32_t srcPosition[2],
+                    const float32_t srcHeading[2],
+                    const float32_t dstPosition_[2],
+                    const float32_t dstHeading_[2]);
+
     ExternalCostCallback m_externalCost;
     void* m_externalCostUserData;
 
-    // std::shared_ptr<DStarLite> m_DStarLite;
+    std::shared_ptr<DStarLite> m_DStarLite;
 
     // Reeds-Shepp data
     ReedsShepp m_reedsShepp;

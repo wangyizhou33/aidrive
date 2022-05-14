@@ -208,7 +208,7 @@ void HybridAStar::init(int32_t maxNumNodes,
 
     // if (useHolonimicWithObstaclesHeuristic)
     // {
-    //     m_DStarLite.reset(new DStarLite());
+        m_DStarLite.reset(new DStarLite());
     //     m_DStarLite->init(maxNumNodes, cellSize, maxNumCollisionCells);
     // }
     // else
@@ -302,10 +302,12 @@ HybridAStar::State HybridAStar::findPath(const Vector2f& startPos, const Vector2
     // create target node
 
     // early out if target pos is not reachable
-    if (m_isDrivable != nullptr && !m_isDrivable(&targetPos.x(), &targetHeading.x(), &targetPos.x(), &targetHeading.x(), m_isDrivableUserData))
+    // if (m_isDrivable != nullptr && !m_isDrivable(&targetPos.x(), &targetHeading.x(), &targetPos.x(), &targetHeading.x(), m_isDrivableUserData))
+    if(!isDrivable(&targetPos.x(), &targetHeading.x(), &targetPos.x(), &targetHeading.x()))
     {
         setResult(nullptr);
         m_state = State::READY;
+        std::cout << "target is not reachable" << std::endl;
         return m_state;
     }
 
@@ -604,19 +606,20 @@ bool HybridAStar::createNeighbors(CarNode& n, bool backward)
                 }
                 newHeading = rot * newHeading; // new tangent
 
-                // {
-                //     // we also have to check the dStarLite isDrivable function because
-                //     // we have to ensure that only nodes are created that are also valid dStar nodes,
-                //     // otherwise it could happen that we search for an unreachable node in getEstimate.
-                //     if ((m_DStarLite != nullptr && !m_DStarLite->getCollisionGrid()->isDrivable(newPos)) ||
-                //         (m_isDrivable != nullptr &&
-                //          !m_isDrivable(&prevPos.x(), &prevHeading.x(),
-                //                        &newPos.x(), &newHeading.x(), m_isDrivableUserData)))
-                //     {
-                //         drivable = false;
-                //         break;
-                //     }
-                // }
+                {
+                    // we also have to check the dStarLite isDrivable function because
+                    // we have to ensure that only nodes are created that are also valid dStar nodes,
+                    // otherwise it could happen that we search for an unreachable node in getEstimate.
+                    if ((m_DStarLite != nullptr && !m_DStarLite->getCollisionGrid()->isDrivable(newPos)) ||
+                        // (m_isDrivable != nullptr &&
+                        //  !m_isDrivable(&prevPos.x(), &prevHeading.x(),
+                        //                &newPos.x(), &newHeading.x(), m_isDrivableUserData)))
+                       (!isDrivable(&prevPos.x(), &prevHeading.x(), &newPos.x(), &newHeading.x())))
+                    {
+                        drivable = false;
+                        break;
+                    }
+                }
 
                 newIndex = computeIndex(newPos, newHeading, backward ? -1 : 1);
             }
@@ -824,9 +827,10 @@ bool HybridAStar::reedsShepp(CarNode* startNode,
             auto rotation_  = Rotation2D(static_cast<float32_t>(m_RSPath[i - 1].orientation));
             previousHeading = rotation_ * Vector2f(1.0f, 0.0f);
         }
-        if (m_isDrivable != nullptr &&
-            m_isDrivable(&previousPos.x(), &previousHeading.x(), &pos.x(), &heading.x(),
-                         m_isDrivableUserData) == false)
+        // if (m_isDrivable != nullptr &&
+        //     m_isDrivable(&previousPos.x(), &previousHeading.x(), &pos.x(), &heading.x(),
+        //                  m_isDrivableUserData) == false)
+        if(isDrivable(&previousPos.x(), &previousHeading.x(), &pos.x(), &heading.x()) == false)
         {
             m_RSNodeCount = 0;
             return false;
@@ -874,4 +878,113 @@ const char* HybridAStar::toString(State s)
         throw std::runtime_error("Unexpected enum value.");
     }
     return result;
+}
+
+template <class Container, class ContainerElement>
+class IsNotInContainer
+{
+private:
+    // not assignable due to reference member
+    void operator=(const IsNotInContainer& other);
+
+public:
+    IsNotInContainer(const Container& container)
+        : mContainer(container)
+    {
+    }
+
+    bool operator()(const ContainerElement& element)
+    {
+        return mContainer.find(element) == mContainer.end();
+    }
+
+private:
+    const Container& mContainer;
+};
+
+// see paper "A Fast Voxel Traversal Algorithm"
+// this ensures we sample all cells that the line touches
+template <class CellAction>
+bool lineVoxelized(const Vector2f& srcPos, const Vector2f& dstPos, float cellSize, CellAction op)
+{
+    Coord2d coord(srcPos, cellSize);
+    Coord2d endCoord(dstPos, cellSize);
+
+    Vector2f srcCellMinPos = coord.getMin(cellSize);
+    Vector2f srcCellMaxPos = coord.getMax(cellSize);
+
+    // step directions
+    int stepX = srcPos.x() < dstPos.x() ? 1 : -1;
+    int stepY = srcPos.y() < dstPos.y() ? 1 : -1;
+
+    // x
+    float deltaX      = abs(dstPos.x() - srcPos.x());
+    float tDeltaX     = deltaX != 0.0f ? cellSize / deltaX : 0.0f;
+    float cellBorderX = stepX > 0 ? srcCellMaxPos.x() : srcCellMinPos.x();
+    float tMaxX       = deltaX != 0.0f ? abs(cellBorderX - srcPos.x()) / deltaX : std::numeric_limits<float32_t>::max();
+
+    // y
+    float deltaY      = abs(dstPos.y() - srcPos.y());
+    float tDeltaY     = deltaY != 0.0f ? cellSize / deltaY : 0.0f;
+    float cellBorderY = stepY > 0 ? srcCellMaxPos.y() : srcCellMinPos.y();
+    float tMaxY       = deltaY != 0.0f ? abs(cellBorderY - srcPos.y()) / deltaY : std::numeric_limits<float32_t>::max();
+
+    bool ok = false;
+    for (;;)
+    {
+        ok = op(coord);
+        if (!ok || (tMaxX >= 1.0f && tMaxY >= 1.0f))
+            break;
+
+        if (tMaxX < tMaxY)
+        {
+            tMaxX += tDeltaX;
+            coord.x += stepX;
+        }
+        else
+        {
+            tMaxY += tDeltaY;
+            coord.y += stepY;
+        }
+    }
+
+    return ok;
+}
+
+bool HybridAStar::isDrivable(const float32_t srcPosition[2],
+                             const float32_t srcHeading[2],
+                             const float32_t dstPosition_[2],
+                             const float32_t dstHeading_[2])
+{
+    float32_t CarLength = 5.0f;
+    float32_t CarWidth  = 2.0f;
+
+    Vector2f dstPosition(dstPosition_[0], dstPosition_[1]);
+    Vector2f dstHeading(dstHeading_[0], dstHeading_[1]);
+
+    auto mRot90 = Eigen::Rotation2Df(static_cast<float>(M_PI_2)).matrix();
+
+    Vector2f sideVector = mRot90 * dstHeading;
+
+    Vector2f corners[5] = {
+        dstPosition - dstHeading * 0.5f * CarLength - sideVector * 0.5f * CarWidth,
+        dstPosition - dstHeading * 0.5f * CarLength + sideVector * 0.5f * CarWidth,
+        dstPosition + dstHeading * 0.5f * CarLength + sideVector * 0.5f * CarWidth,
+        dstPosition + dstHeading * 0.5f * CarLength - sideVector * 0.5f * CarWidth};
+    corners[4] = corners[0];
+
+    auto collision = getDStarLite()->getCollisionGrid()->getCells();
+    for (int i = 0; i < 4; ++i)
+    {
+        if (!lineVoxelized(corners[i],
+                           corners[i + 1],
+                           getDStarLite()->getCollisionGrid()->getCellSize(),
+                           IsNotInContainer<std::unordered_set<Coord2d, Coord2d, std::equal_to<Coord2d>>, Coord2d>(*collision)))
+        {
+            return false;
+        }
+    }
+
+    return true;
+
 }

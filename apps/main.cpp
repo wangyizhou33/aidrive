@@ -296,6 +296,31 @@ int main(void)
                 ImGui::SameLine();
                 ImGui::SliderFloat("obj vy", &objV[1], 0.f, 30.0f, "%.1f");
 
+                // mock collision grid
+                std::shared_ptr<CollisionGrid> cg = astar.getDStarLite()->getCollisionGrid();
+                float32_t cellSize = cg->getCellSize();
+                std::vector<float32_t> newCells{10.0f,  5.0f,
+                                                10.0f,  4.0f,
+                                                10.0f, -1.0f,
+                                                10.0f,  0.0f,
+                                                10.0f,  1.0f,
+                                                10.0f,  2.0f,
+                                                10.0f,  3.0f}; // format {x0, y0, x1, y1, x2, y2 ...}
+                cg->clear();
+                cg->addCells(&newCells[0], newCells.size() / 2); 
+                cg->update();
+
+                aidrive::Rect2f cellDim{cellSize, cellSize}; // cell dimension
+                auto cells = cg->getCells();
+
+                for (auto it = cells->begin(); it != cells->end(); ++it)
+                {
+                    aidrive::Vector2f cellCenter = it->getCenter(cellSize);
+                    m_renderer.drawRect(aidrive::Vector3f(cellCenter.x(), cellCenter.y(), 0.0f),
+                                        cellDim,
+                                        aidrive::render::COLOR_BLACK);
+                }
+
                 if (ImGui::SmallButton("Plan A*"))
                 {
                     std::cout << "Plan A* now." << std::endl;

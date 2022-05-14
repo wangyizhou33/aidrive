@@ -1,11 +1,16 @@
 set(HEADERS
     HybridAStar.hpp
     ReedsShepp.hpp
+    Coord2d.hpp
+    CollisionGrid.hpp
+    DStarLite.hpp
 )
 
 set(SOURCES
     HybridAStar.cpp
     ReedsShepp.cpp
+    CollisionGrid.cpp
+    DStarLite.cpp
 )
 
 add_library(HybridAStar SHARED
