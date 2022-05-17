@@ -22,6 +22,7 @@ const ImU32 COLOR_WHITE = ImColor(1.0f, 1.0f, 1.0f, 1.0f);
 const ImU32 COLOR_RED   = ImColor(1.0f, 0.0f, 0.0f, 1.0f);
 const ImU32 COLOR_GREEN = ImColor(0.0f, 1.0f, 0.0f, 1.0f);
 const ImU32 COLOR_BLUE  = ImColor(0.0f, 0.0f, 1.0f, 1.0f);
+const ImU32 COLOR_SILVER = ImColor(0.75f, 0.75f, 0.75f, 1.0f);
 
 /**
  * \@brief draw_list is owned by ImGui
@@ -65,6 +66,9 @@ public:
     void drawPolyline(const std::vector<Vector3f>& ppts,
                       const Vector3f& pose, // reference frame to world
                       ImU32 color = COLOR_GREEN);
+
+    void drawSearchLines(const std::vector<Vector2f>& lines,
+                         ImU32 color);
 
     // origin at "eye". x to the right, y upward
     Vector2f getCartesianCoordinates(const ImVec2& pixel) const;

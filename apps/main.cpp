@@ -233,6 +233,8 @@ int main(void)
                                   0.5f,
                                   50.0f);
 
+    std::vector<aidrive::Vector2f> searchLines{};
+
     while (!glfwWindowShouldClose(window))
     {
         auto start = std::chrono::high_resolution_clock::now();
@@ -324,6 +326,8 @@ int main(void)
                 if (ImGui::SmallButton("Plan A*"))
                 {
                     std::cout << "Plan A* now." << std::endl;
+                    searchLines.clear();
+
                     int32_t reedsSheppN = 100;
                     astar.findPath(aidrive::Vector2f{pose[0], pose[1]},
                                    aidrive::Vector2f{std::cos(pose[2]), std::sin(pose[2])},
@@ -341,7 +345,25 @@ int main(void)
                     astar.getPath(&newPath[0].x(), &newHeadings[0].x(), &newDirs[0], cnt);
 
                     poly = convertToTrajectory(newPath);
+
+                    constexpr bool renderSearchLine = true;
+                    if (renderSearchLine)
+                    {
+                        std::cout << "renderSearchLine option is on" << std::endl;
+                        
+                        uint32_t cnt = 0u;
+
+                        astar.getSearchLines(nullptr, &cnt);
+                        searchLines.resize(cnt * 2);  // cnt is line count
+                                                      // point count will be 2 * cnt
+                        astar.getSearchLines(&searchLines[0].x(), &cnt);
+                    }
+                    else
+                    {
+                        std::cout << "renderSearchLine option is off" << std::endl;
+                    }
                 }
+                m_renderer.drawSearchLines(searchLines, aidrive::render::COLOR_SILVER);
                 ImGui::PopItemWidth();
 
                 // draw ego

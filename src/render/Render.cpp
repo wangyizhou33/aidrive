@@ -141,5 +141,22 @@ Vector2f Renderer::getCartesianCoordinates(const ImVec2& pixel) const
     return {out[0], out[1]};
 }
 
+void Renderer::drawSearchLines(const std::vector<Vector2f>& lines,
+                               ImU32 color)
+{
+    constexpr float32_t thickness = 1.0f;
+
+    for (uint32_t i = 0u; i < lines.size() / 2; ++i)
+    {
+        std::vector<ImVec2> verticesInPixel{}; 
+        Vector3f v1 = m_projection * m_view * Vector3f{lines.at(2 * i).x(), lines.at(2 * i).y(), 1.0f};
+        verticesInPixel.push_back(convert(v1));
+        Vector3f v2 = m_projection * m_view * Vector3f{lines.at(2 * i + 1).x(), lines.at(2 * i + 1).y(), 1.0f};
+        verticesInPixel.push_back(convert(v2));
+
+        render::drawPolyline(m_list, verticesInPixel, color, thickness);
+    }
+}
+
 } // namespace render
 } // namespace aidrive
