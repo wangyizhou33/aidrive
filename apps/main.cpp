@@ -222,7 +222,7 @@ int main(void)
     astar.init(aStarParams.maxNumNodes, aStarParams.carTurningRadius, numSteeringAngles,
                aStarParams.cellSize, 1, angleTolerance,
                aStarParams.distWeight, aStarParams.dirSwitchCost,
-               aStarParams.backwardsMultiplier, true,
+               aStarParams.backwardsMultiplier, true, // true means using dstar heuristic, which speeds up the search hopefully. Right now it must be on
                aStarParams.maxNumCollisionCells, aStarParams.maxPathLength);
 
     // green curve
@@ -233,7 +233,9 @@ int main(void)
                                   0.5f,
                                   50.0f);
 
+    // astar rendering
     std::vector<aidrive::Vector2f> searchLines{};
+    std::vector<aidrive::Vector3f> dStarPath{};
 
     while (!glfwWindowShouldClose(window))
     {
@@ -357,6 +359,13 @@ int main(void)
                         searchLines.resize(cnt * 2);  // cnt is line count
                                                       // point count will be 2 * cnt
                         astar.getSearchLines(&searchLines[0].x(), &cnt);
+
+                        cnt = 0u;
+                        astar.getDStarLitePath(nullptr, &cnt);
+                        newPath.resize(cnt);
+                        astar.getDStarLitePath(&newPath[0].x(), &cnt);
+
+                        dStarPath = convertToTrajectory(newPath);
                     }
                     else
                     {
@@ -373,6 +382,7 @@ int main(void)
                 // draw reference
                 m_renderer.drawPolyline(poly, aidrive::Vector3f{0.0f, 0.0f, 0.0f}, aidrive::render::COLOR_GREEN);
                 // don't need to tf the astar path to global.
+                m_renderer.drawPolyline(dStarPath, aidrive::Vector3f{0.0f, 0.0f, 0.0f}, aidrive::render::COLOR_ORANGE);
 
                 if (!useTrajOpt)
                 {

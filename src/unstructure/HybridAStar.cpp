@@ -80,7 +80,7 @@ HybridAStar::HybridAStar()
     , m_isDrivableUserData(nullptr)
     , m_externalCost(nullptr)
     , m_externalCostUserData(nullptr)
-    // , m_DStarLite(nullptr)
+    , m_DStarLite(nullptr)
     , m_RSAngleStepSize(0.0f)
     , m_RSMaxPathLength(0.0f)
     , m_RSNodeCount(0)
@@ -206,15 +206,15 @@ void HybridAStar::init(int32_t maxNumNodes,
     m_RSPath.resize(maxNumSteps);
     m_RSNodes.resize(maxNumSteps);
 
-    // if (useHolonimicWithObstaclesHeuristic)
-    // {
+    if (useHolonomicWithObstaclesHeuristic)
+    {
         m_DStarLite.reset(new DStarLite());
-    //     m_DStarLite->init(maxNumNodes, cellSize, maxNumCollisionCells);
-    // }
-    // else
-    // {
-    //     m_DStarLite.reset();
-    // }
+        m_DStarLite->init(maxNumNodes, cellSize, maxNumCollisionCells);
+    }
+    else
+    {
+        m_DStarLite.reset();
+    }
 
     m_numVisitedNodes = 0;
 
@@ -288,16 +288,16 @@ HybridAStar::State HybridAStar::findPath(const Vector2f& startPos, const Vector2
     }
 
     // check if reachable by D* path
-    // if (m_DStarLite != nullptr)
-    // {
-    //     m_DStarLite->setTarget(targetPos);
-    //     float32_t dStarLitePathLength = 0.0f;
-    //     if (!m_DStarLite->findPath(dStarLitePathLength, startPos))
-    //     {
-    //         m_state = State::READY;
-    //         return m_state;
-    //     }
-    // }
+    if (m_DStarLite != nullptr)
+    {
+        m_DStarLite->setTarget(targetPos);
+        float32_t dStarLitePathLength = 0.0f;
+        if (!m_DStarLite->findPath(dStarLitePathLength, startPos))
+        {
+            m_state = State::READY;
+            return m_state;
+        }
+    }
 
     // create target node
 
@@ -394,6 +394,26 @@ void HybridAStar::getPath(float32_t* pathPoints,
         }
     }
 }
+
+void HybridAStar::getDStarLitePath(float32_t* pathPoints, uint32_t* pathPointCount)
+{
+    if (m_DStarLite == nullptr)
+    {
+        *pathPointCount = 0;
+    }
+    else
+    {
+        if (m_DStarNeedsUpdate)
+        {
+            float32_t pathLength = std::numeric_limits<float32_t>::max();
+            m_DStarLite->findPath(pathLength, m_startPos);
+            m_DStarNeedsUpdate = false;
+        }
+
+        m_DStarLite->getPath(pathPoints, pathPointCount);
+    }
+}
+
 
 void HybridAStar::getSearchLines(float32_t* searchLines, uint32_t* searchLineCount)
 {
@@ -721,16 +741,16 @@ float32_t HybridAStar::getEstimate(const Vector2f& pos, const Vector2f& posTarge
 {
     float32_t estimate = (pos - posTarget).norm();
 
-    // if (m_DStarLite != nullptr)
-    // {
-    //     float32_t holonomicCost = 0.0f;
-    //     if (!m_DStarLite->findPath(holonomicCost, pos))
-    //     {
-    //         // estimate must be optimistic in A* search
-    //         holonomicCost = 0.0f;
-    //     }
-    //     estimate = std::max(estimate, holonomicCost);
-    // }
+    if (m_DStarLite != nullptr)
+    {
+        float32_t holonomicCost = 0.0f;
+        if (!m_DStarLite->findPath(holonomicCost, pos))
+        {
+            // estimate must be optimistic in A* search
+            holonomicCost = 0.0f;
+        }
+        estimate = std::max(estimate, holonomicCost);
+    }
 
     return estimate;
 }

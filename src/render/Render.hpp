@@ -23,6 +23,7 @@ const ImU32 COLOR_RED   = ImColor(1.0f, 0.0f, 0.0f, 1.0f);
 const ImU32 COLOR_GREEN = ImColor(0.0f, 1.0f, 0.0f, 1.0f);
 const ImU32 COLOR_BLUE  = ImColor(0.0f, 0.0f, 1.0f, 1.0f);
 const ImU32 COLOR_SILVER = ImColor(0.75f, 0.75f, 0.75f, 1.0f);
+const ImU32 COLOR_ORANGE = ImColor(1.0f, 0.5f, 0.0f, 1.0f);
 
 /**
  * \@brief draw_list is owned by ImGui
