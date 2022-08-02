@@ -22,6 +22,10 @@ public:
     std::vector<float32_t> getA() const;
     std::vector<float32_t> getJ() const;
 
+    // {s1, v1}, {s2, v2} ...
+    std::vector<float32_t> getSpeedLimit() const;
+    std::vector<float32_t> getVAsFunctionOfD() const;
+
 private:
     static constexpr size_t OPT_STEPS = 50;
     static constexpr float64_t DT     = 0.1;

@@ -114,6 +114,25 @@ private:
     Sign sign{};
 };
 
+class SpeedLimitCost
+{
+public:
+    SpeedLimitCost(float _a0, float _a1, float _a2)
+        : a0(_a0), a1(_a1), a2(_a2){};
+
+    template <typename T>
+    bool operator()(const T* const v,
+                    const T* const s,
+                    T* residual) const
+    {
+        residual[0] = std::max(T(0.0), v[0] - (T(a0) + T(a1) * s[0] + T(a2) * s[0] * s[0]));
+        return true;
+    }
+
+private:
+    float32_t a0, a1, a2; // v_max = a0 + a1 * x + a2 * x^2
+};
+
 SpeedOpt::SpeedOpt()
 {
     std::fill_n(&m_d[0], OPT_STEPS, 0.0);
@@ -177,7 +196,6 @@ void SpeedOpt::optimize(float32_t vInit,
     }
 
     constexpr float64_t ALIM = 1.5f;
-    constexpr float64_t DLIM = 20.0f;
 
     LossFunction* loss8 = new ScaledLoss(
         new TrivialLoss(),
@@ -192,6 +210,12 @@ void SpeedOpt::optimize(float32_t vInit,
         //         new ProgressCost(tIdx, discount));
 
         // problem.AddResidualBlock(cost1, NULL, &d[tIdx]);
+
+        // speed limit
+        CostFunction* cost11 =
+            new AutoDiffCostFunction<SpeedLimitCost, 1, 1, 1>(
+                new SpeedLimitCost(405.f, -40.f, 1.f));
+        problem.AddResidualBlock(cost11, loss8, &v[tIdx], &d[tIdx]);
 
         // kinematic constraint
         problem.AddResidualBlock(cost2, loss2, &d[tIdx], &d[tIdx - 1], &v[tIdx - 1]);
@@ -243,6 +267,7 @@ void SpeedOpt::optimize(float32_t vInit,
 
         // progress constraint
         {
+            constexpr float64_t DLIM = 200.0f;
             CostFunction* cost10 =
                 new AutoDiffCostFunction<InequalityResidual, 1, 1>(
                     new InequalityResidual(DLIM, InequalityResidual::LESS));
@@ -295,6 +320,44 @@ std::vector<float32_t> SpeedOpt::getJ() const
     result.resize(OPT_STEPS);
     std::copy(&m_j[0], &m_j[OPT_STEPS], result.begin());
     return result;
+}
+
+std::vector<float32_t> SpeedOpt::getSpeedLimit() const
+{
+    std::vector<float32_t> ret{};
+
+    for (size_t i = 0; i < 50; ++i)
+    {
+        float32_t s = 1.0 * i; // every 1 meter
+        float32_t v = s * s - 40.0 * s + 405.0;
+
+        ret.push_back(v);
+    }
+
+    return ret;
+}
+
+std::vector<float32_t> SpeedOpt::getVAsFunctionOfD() const
+{
+    std::vector<float32_t> ret{};
+
+    ret.push_back(m_v[0]);
+    for (size_t i = 1; i < 50; ++i)
+    {
+        float32_t s = 1.0 * i; // every 1 meter
+
+        for (size_t j = 0; j < OPT_STEPS; ++j)
+        {
+            // find first d > s,
+            if (m_d[j] > s)
+            {
+                std::cout << m_d[j] << std::endl;
+                ret.push_back(m_v[j]);
+                break;
+            }
+        }
+    }
+    return ret;
 }
 
 } // namespace planner

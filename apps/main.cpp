@@ -155,7 +155,7 @@ int main(void)
                                         // {6...65} are inputs if something needs to be fixed
                                         // see topt.setFixed
 
-    float32_t vInit{0.0f};
+    float32_t vInit{8.0f};
     float32_t vInitY{0.0f};
     float32_t aInit{0.0f};
 
@@ -174,7 +174,7 @@ int main(void)
     bool waitingOn{false};
 
     // use TrajectoryOptimizer
-    bool useTrajOpt{true};
+    bool useTrajOpt{false};
     bool useTermCond{false}; // terminal condition
     float64_t v_long{SMOOTHNESS_COST_WEIGHT_LONG_VELOCITY_DEFAULT};
     float64_t a_long{SMOOTHNESS_COST_WEIGHT_LONG_ACCELERATION_DEFAULT};
@@ -302,16 +302,16 @@ int main(void)
 
                 // mock collision grid
                 std::shared_ptr<CollisionGrid> cg = astar.getDStarLite()->getCollisionGrid();
-                float32_t cellSize = cg->getCellSize();
-                std::vector<float32_t> newCells{10.0f,  5.0f,
-                                                10.0f,  4.0f,
+                float32_t cellSize                = cg->getCellSize();
+                std::vector<float32_t> newCells{10.0f, 5.0f,
+                                                10.0f, 4.0f,
                                                 10.0f, -1.0f,
-                                                10.0f,  0.0f,
-                                                10.0f,  1.0f,
-                                                10.0f,  2.0f,
-                                                10.0f,  3.0f}; // format {x0, y0, x1, y1, x2, y2 ...}
+                                                10.0f, 0.0f,
+                                                10.0f, 1.0f,
+                                                10.0f, 2.0f,
+                                                10.0f, 3.0f}; // format {x0, y0, x1, y1, x2, y2 ...}
                 cg->clear();
-                cg->addCells(&newCells[0], newCells.size() / 2); 
+                cg->addCells(&newCells[0], newCells.size() / 2);
                 cg->update();
 
                 aidrive::Rect2f cellDim{cellSize, cellSize}; // cell dimension
@@ -352,12 +352,12 @@ int main(void)
                     if (renderSearchLine)
                     {
                         std::cout << "renderSearchLine option is on" << std::endl;
-                        
+
                         uint32_t cnt = 0u;
 
                         astar.getSearchLines(nullptr, &cnt);
-                        searchLines.resize(cnt * 2);  // cnt is line count
-                                                      // point count will be 2 * cnt
+                        searchLines.resize(cnt * 2); // cnt is line count
+                                                     // point count will be 2 * cnt
                         astar.getSearchLines(&searchLines[0].x(), &cnt);
 
                         cnt = 0u;
@@ -510,12 +510,12 @@ int main(void)
 
             TIME_IT("speed opt", speedOpt.optimize(vInit, aInit));
 
-            ImGui::SetNextWindowPos(ImVec2(0, WINDOW_HEIGHT - 300), ImGuiCond_Appearing);
-            ImGui::SetNextWindowSize(ImVec2(350, 300), ImGuiCond_Appearing);
+            ImGui::SetNextWindowPos(ImVec2(WINDOW_WIDTH - 700, WINDOW_HEIGHT - 600), ImGuiCond_Appearing);
+            ImGui::SetNextWindowSize(ImVec2(700, 600), ImGuiCond_Appearing);
 
             ImGui::Begin("2d plot");
             {
-                const ImVec2 GRAPH_SIZE{300, 60};
+                const ImVec2 GRAPH_SIZE{600, 120};
 
                 if (!useTrajOpt)
                 {
@@ -528,8 +528,15 @@ int main(void)
                     auto a = speedOpt.getA();
                     ImGui::PlotLines("a", &a[0], a.size(), 0, nullptr, -3.0f, 3.0f, GRAPH_SIZE);
 
-                    auto j = speedOpt.getJ();
-                    ImGui::PlotLines("j", &j[0], j.size(), 0, nullptr, -10.0f, 10.0f, GRAPH_SIZE);
+                    // auto j = speedOpt.getJ();
+                    // ImGui::PlotLines("j", &j[0], j.size(), 0, nullptr, -10.0f, 10.0f, GRAPH_SIZE);
+
+                    auto speedLimit = speedOpt.getSpeedLimit();
+                    ImGui::PlotLines("v limit" , &speedLimit[0], speedLimit.size(), 0, nullptr, 0.0f, 30.0f, GRAPH_SIZE);
+
+                    // auto vAsFunctionOfD = speedOpt.getVAsFunctionOfD();
+                    // ImGui::PlotLines("v", &vAsFunctionOfD[0], vAsFunctionOfD.size(), 0, nullptr, 0.0f, 30.0f, GRAPH_SIZE);
+
                 }
                 else
                 {
