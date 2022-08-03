@@ -225,14 +225,6 @@ int main(void)
                aStarParams.backwardsMultiplier, true, // true means using dstar heuristic, which speeds up the search hopefully. Right now it must be on
                aStarParams.maxNumCollisionCells, aStarParams.maxPathLength);
 
-    // green curve
-    // gen traj
-    std::vector<aidrive::Vector3f> poly =
-        aidrive::generatePolyline({0.0f, initError, 0.0f},
-                                  curvature,
-                                  0.5f,
-                                  50.0f);
-
     // astar rendering
     std::vector<aidrive::Vector2f> searchLines{};
     std::vector<aidrive::Vector3f> dStarPath{};
@@ -346,7 +338,7 @@ int main(void)
                     std::vector<DrivingState> newDirs(cnt);
                     astar.getPath(&newPath[0].x(), &newHeadings[0].x(), &newDirs[0], cnt);
 
-                    poly = convertToTrajectory(newPath);
+                    // poly = convertToTrajectory(newPath);
 
                     constexpr bool renderSearchLine = true;
                     if (renderSearchLine)
@@ -380,12 +372,22 @@ int main(void)
                 // draw obstacle
                 m_renderer.drawRect(objP, dim);
                 // draw reference
-                m_renderer.drawPolyline(poly, aidrive::Vector3f{0.0f, 0.0f, 0.0f}, aidrive::render::COLOR_GREEN);
+                // m_renderer.drawPolyline(poly, aidrive::Vector3f{0.0f, 0.0f, 0.0f}, aidrive::render::COLOR_GREEN);
                 // don't need to tf the astar path to global.
                 m_renderer.drawPolyline(dStarPath, aidrive::Vector3f{0.0f, 0.0f, 0.0f}, aidrive::render::COLOR_ORANGE);
 
                 if (!useTrajOpt)
                 {
+
+                    // green curve
+                    // gen traj
+                    std::vector<aidrive::Vector3f> poly =
+                        aidrive::generatePolyline({0.0f, initError, 0.0f},
+                                                  curvature,
+                                                  0.5f,
+                                                  50.0f);
+                    m_renderer.drawPolyline(poly, aidrive::Vector3f{0.0f, 0.0f, 0.0f}, aidrive::render::COLOR_GREEN);
+
                     std::vector<aidrive::Vector3f> predPoly{};
                     TIME_IT("path opt", predPoly = ctrl.optimize(poly));
 
@@ -532,11 +534,10 @@ int main(void)
                     // ImGui::PlotLines("j", &j[0], j.size(), 0, nullptr, -10.0f, 10.0f, GRAPH_SIZE);
 
                     auto speedLimit = speedOpt.getSpeedLimit();
-                    ImGui::PlotLines("v limit" , &speedLimit[0], speedLimit.size(), 0, nullptr, 0.0f, 30.0f, GRAPH_SIZE);
+                    ImGui::PlotLines("v limit", &speedLimit[0], speedLimit.size(), 0, nullptr, 0.0f, 30.0f, GRAPH_SIZE);
 
                     // auto vAsFunctionOfD = speedOpt.getVAsFunctionOfD();
                     // ImGui::PlotLines("v", &vAsFunctionOfD[0], vAsFunctionOfD.size(), 0, nullptr, 0.0f, 30.0f, GRAPH_SIZE);
-
                 }
                 else
                 {
