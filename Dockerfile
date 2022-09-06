@@ -7,7 +7,8 @@ x11-utils libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev \
 libatlas-base-dev libsuitesparse-dev \
 clang-format \
 gcc-7-multilib g++-7-multilib \
-doxygen graphviz
+doxygen graphviz \ 
+libgflags-dev
 
 # Install Ceres from source
 ADD ./3rdparty/ceres/ceres-solver/ source
