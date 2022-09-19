@@ -8,7 +8,8 @@ libatlas-base-dev libsuitesparse-dev \
 clang-format \
 gcc-7-multilib g++-7-multilib \
 doxygen graphviz \ 
-libgflags-dev
+libgflags-dev \
+lcov
 
 # Install Ceres from source
 ADD ./3rdparty/ceres/ceres-solver/ source
@@ -19,7 +20,7 @@ RUN \
     cd ceres-bin && \
     cmake ../ && \
     make -j10 && \
-    make test && \
+    # make test && \
     make install
 
 # Clean up APT when done.

@@ -45,6 +45,11 @@ endif()
 # cereal serialization
 add_subdirectory("3rdparty/cereal")
 
+# gcov 
+set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+include(CodeCoverage)
+APPEND_COVERAGE_COMPILER_FLAGS()
+
 # library
 add_subdirectory("src/")
 
@@ -90,3 +95,14 @@ IF(DOXYGEN_FOUND)
         COMMENT "Generate man pages"
     )
 ENDIF()
+
+set(CODE_COVERAGE_VERBOSE TRUE)
+
+if(CMAKE_COMPILER_IS_GNUCXX)
+    include(CodeCoverage)
+    setup_target_for_coverage_lcov(
+            NAME AidriveCoverage
+            EXECUTABLE Test
+            DEPENDENCIES Test modules
+    )
+endif()
