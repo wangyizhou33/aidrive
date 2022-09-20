@@ -9,7 +9,7 @@ clang-format \
 gcc-7-multilib g++-7-multilib \
 doxygen graphviz \ 
 libgflags-dev \
-lcov
+lcov gcovr
 
 # Install Ceres from source
 ADD ./3rdparty/ceres/ceres-solver/ source

@@ -96,12 +96,22 @@ IF(DOXYGEN_FOUND)
     )
 ENDIF()
 
-set(CODE_COVERAGE_VERBOSE TRUE)
-
 if(CMAKE_COMPILER_IS_GNUCXX)
     include(CodeCoverage)
     setup_target_for_coverage_lcov(
-            NAME AidriveCoverage
+            NAME AidriveCoverage_loc
+            EXECUTABLE Test
+            DEPENDENCIES Test modules
+    )
+
+    setup_target_for_coverage_gcovr_xml(
+            NAME AidriveCoverage_xml
+            EXECUTABLE Test
+            DEPENDENCIES Test modules
+    )
+
+    setup_target_for_coverage_gcovr_html(
+            NAME AidriveCoverage_html
             EXECUTABLE Test
             DEPENDENCIES Test modules
     )
