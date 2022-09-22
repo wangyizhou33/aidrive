@@ -16,9 +16,13 @@ public:
 
     std::vector<Vector3f> optimize(const std::vector<Vector3f>& reference);
 
+    void setCurvatureWeight(float64_t in) {m_dk = in;};
+
 private:
     static constexpr size_t OPT_STEPS = 50;
     float64_t m_cmd[OPT_STEPS]{};
+
+    float64_t m_dk{2.0};
 
 }; // class Controller
 

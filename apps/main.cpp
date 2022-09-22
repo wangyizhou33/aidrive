@@ -145,6 +145,9 @@ int main(void)
     m_renderer.setEye({pose[0], pose[1]});
 
     aidrive::control::Controller ctrl{};
+    float32_t kweight = 2.0f;
+    bool piecewise{false};
+
     aidrive::planner::SpeedOpt speedOpt{};
 
     trajectoryOptimizer<float64_t, 30, 3> topt;
@@ -277,6 +280,11 @@ int main(void)
                 ImGui::SliderAngle("theta", &pose[2], 0.0f, 360.0f, "%.1f");
                 ImGui::SliderFloat("k", &curvature, -0.3f, 0.3f, "%.3f");
                 ImGui::SliderFloat("cte", &initError, -2.0f, 2.0f, "%.3f");
+                ImGui::SameLine();
+                ImGui::SliderFloat("kweight", &kweight, 0.0f, 50.0f, "%.1f");
+                ImGui::SameLine();
+                ImGui::Checkbox("peicewise", &piecewise);
+
                 ImGui::SliderFloat("vInit", &vInit, 0.0f, 10.0f, "%.2f");
                 ImGui::SameLine();
                 ImGui::SliderFloat("vInitY", &vInitY, -10.0f, 10.0f, "%.2f");
@@ -309,13 +317,13 @@ int main(void)
                 aidrive::Rect2f cellDim{cellSize, cellSize}; // cell dimension
                 auto cells = cg->getCells();
 
-                for (auto it = cells->begin(); it != cells->end(); ++it)
-                {
-                    aidrive::Vector2f cellCenter = it->getCenter(cellSize);
-                    m_renderer.drawRect(aidrive::Vector3f(cellCenter.x(), cellCenter.y(), 0.0f),
-                                        cellDim,
-                                        aidrive::render::COLOR_BLACK);
-                }
+                // for (auto it = cells->begin(); it != cells->end(); ++it)
+                // {
+                //     aidrive::Vector2f cellCenter = it->getCenter(cellSize);
+                //     m_renderer.drawRect(aidrive::Vector3f(cellCenter.x(), cellCenter.y(), 0.0f),
+                //                         cellDim,
+                //                         aidrive::render::COLOR_BLACK);
+                // }
 
                 if (ImGui::SmallButton("Plan A*"))
                 {
@@ -370,7 +378,7 @@ int main(void)
                 // draw ego
                 m_renderer.drawRect(pose, dim);
                 // draw obstacle
-                m_renderer.drawRect(objP, dim);
+                // m_renderer.drawRect(objP, dim);
                 // draw reference
                 // m_renderer.drawPolyline(poly, aidrive::Vector3f{0.0f, 0.0f, 0.0f}, aidrive::render::COLOR_GREEN);
                 // don't need to tf the astar path to global.
@@ -381,14 +389,36 @@ int main(void)
 
                     // green curve
                     // gen traj
-                    std::vector<aidrive::Vector3f> poly =
-                        aidrive::generatePolyline({0.0f, initError, 0.0f},
-                                                  curvature,
-                                                  0.5f,
-                                                  50.0f);
+
+                    std::vector<aidrive::Vector3f> poly{};
+                    if (!piecewise)
+                    {
+                        poly = aidrive::generatePolyline({0.0f, initError, 0.0f},
+                                                         curvature,
+                                                         0.5f,
+                                                         30.0f);
+                    }
+                    else
+                    {
+                        // first piece
+                        poly = aidrive::generatePolyline({0.0f, initError, 0.0f},
+                                                         curvature,
+                                                         0.5f,
+                                                         15.0f);
+
+                        // second piece
+                        std::vector<aidrive::Vector3f> poly1 =
+                            aidrive::generatePolyline({15.0f, 0, 0.0f},
+                                                      curvature,
+                                                      0.5f,
+                                                      15.0f);
+                        poly.insert(std::end(poly), std::begin(poly1), std::end(poly1));
+                    }
+
                     m_renderer.drawPolyline(poly, aidrive::Vector3f{0.0f, 0.0f, 0.0f}, aidrive::render::COLOR_GREEN);
 
                     std::vector<aidrive::Vector3f> predPoly{};
+                    ctrl.setCurvatureWeight(static_cast<float64_t>(kweight));
                     TIME_IT("path opt", predPoly = ctrl.optimize(poly));
 
                     m_renderer.drawPolyline(predPoly, pose, aidrive::render::COLOR_BLUE);

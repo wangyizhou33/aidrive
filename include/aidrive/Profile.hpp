@@ -1,6 +1,6 @@
 #include <chrono>
 
-constexpr bool DEBUG_PRINT_RESULTS = false;
+constexpr bool DEBUG_PRINT_RESULTS = true;
 
 // clang-format off
 #define TIME_IT(name, a) \
