@@ -204,7 +204,6 @@ void SpeedOpt::optimize(float32_t vInit,
 
     for (int32_t tIdx = 1; tIdx < OPT_STEPS; ++tIdx)
     {
-
         // CostFunction* cost1 =
         //     new AutoDiffCostFunction<ProgressCost, 1, 1>(
         //         new ProgressCost(tIdx, discount));
@@ -212,10 +211,13 @@ void SpeedOpt::optimize(float32_t vInit,
         // problem.AddResidualBlock(cost1, NULL, &d[tIdx]);
 
         // speed limit
-        CostFunction* cost11 =
-            new AutoDiffCostFunction<SpeedLimitCost, 1, 1, 1>(
-                new SpeedLimitCost(405.f, -40.f, 1.f));
-        problem.AddResidualBlock(cost11, loss8, &v[tIdx], &d[tIdx]);
+        if (m_curveSpeedOn)
+        {
+            CostFunction* cost11 =
+                new AutoDiffCostFunction<SpeedLimitCost, 1, 1, 1>(
+                    new SpeedLimitCost(405.f, -40.f, 1.f));
+            problem.AddResidualBlock(cost11, loss8, &v[tIdx], &d[tIdx]);
+        }
 
         // kinematic constraint
         problem.AddResidualBlock(cost2, loss2, &d[tIdx], &d[tIdx - 1], &v[tIdx - 1]);

@@ -177,7 +177,6 @@ int main(void)
     bool waitingOn{false};
 
     // use TrajectoryOptimizer
-    bool useTrajOpt{false};
     bool useTermCond{false}; // terminal condition
     float64_t v_long{SMOOTHNESS_COST_WEIGHT_LONG_VELOCITY_DEFAULT};
     float64_t a_long{SMOOTHNESS_COST_WEIGHT_LONG_ACCELERATION_DEFAULT};
@@ -227,10 +226,10 @@ int main(void)
                aStarParams.distWeight, aStarParams.dirSwitchCost,
                aStarParams.backwardsMultiplier, true, // true means using dstar heuristic, which speeds up the search hopefully. Right now it must be on
                aStarParams.maxNumCollisionCells, aStarParams.maxPathLength);
-
     // astar rendering
     std::vector<aidrive::Vector2f> searchLines{};
     std::vector<aidrive::Vector3f> dStarPath{};
+    std::vector<aidrive::Vector3f> aStarPath{};
 
     while (!glfwWindowShouldClose(window))
     {
@@ -247,7 +246,7 @@ int main(void)
 
             ImGui::Begin("Hello, world!",
                          nullptr,
-                         ImGuiWindowFlags_NoBringToFrontOnFocus); // Create a window called "Hello, world!" and append into it.
+                         ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoMove); // Create a window called "Hello, world!" and append into it.
             {
                 float32_t framePerSecond =
                     std::accumulate(fps.begin(), fps.end(), 0.0f) / static_cast<float32_t>(fps.size());
@@ -266,540 +265,581 @@ int main(void)
                     ImGui::Text("Mouse pos: <INVALID>");
                 }
 
-                // custom rendering
-                ImDrawList* drawList = ImGui::GetWindowDrawList();
-                m_renderer.setImDrawList(drawList);
-
-                ImGui::PushItemWidth(100.f);
-                ImGui::Checkbox("use traj opt", &useTrajOpt);
-                ImGui::Checkbox("use terminal condition", &useTermCond);
-                ImGui::Checkbox("show state machine", &showSM);
-                ImGui::SliderFloat("x", &pose[0], -50.0f, 50.0f, "%.1f");
-                ImGui::SameLine();
-                ImGui::SliderFloat("y", &pose[1], -50.0f, 50.0f, "%.1f");
-                ImGui::SliderAngle("theta", &pose[2], 0.0f, 360.0f, "%.1f");
-                ImGui::SliderFloat("k", &curvature, -0.3f, 0.3f, "%.3f");
-                ImGui::SliderFloat("cte", &initError, -2.0f, 2.0f, "%.3f");
-                ImGui::SameLine();
-                ImGui::SliderFloat("kweight", &kweight, 0.0f, 50.0f, "%.1f");
-                ImGui::SameLine();
-                ImGui::Checkbox("peicewise", &piecewise);
-
-                ImGui::SliderFloat("vInit", &vInit, 0.0f, 10.0f, "%.2f");
-                ImGui::SameLine();
-                ImGui::SliderFloat("vInitY", &vInitY, -10.0f, 10.0f, "%.2f");
-                ImGui::SameLine();
-                ImGui::SliderFloat("aInit", &aInit, -2.0f, 2.0f, "%.2f");
-                ImGui::SliderFloat("obj x", &objP[0], 0.f, 50.0f, "%.1f");
-                ImGui::SameLine();
-                ImGui::SliderFloat("obj y", &objP[1], 0.f, 50.0f, "%.1f");
-                ImGui::SameLine();
-                ImGui::SliderFloat("obj theta", &objP[2], -3.14, 3.14, "%.1f");
-                ImGui::SameLine();
-                ImGui::SliderFloat("obj vx", &objV[0], 0.f, 30.0f, "%.1f");
-                ImGui::SameLine();
-                ImGui::SliderFloat("obj vy", &objV[1], 0.f, 30.0f, "%.1f");
-
-                // mock collision grid
-                std::shared_ptr<CollisionGrid> cg = astar.getDStarLite()->getCollisionGrid();
-                float32_t cellSize                = cg->getCellSize();
-                std::vector<float32_t> newCells{10.0f, 5.0f,
-                                                10.0f, 4.0f,
-                                                10.0f, -1.0f,
-                                                10.0f, 0.0f,
-                                                10.0f, 1.0f,
-                                                10.0f, 2.0f,
-                                                10.0f, 3.0f}; // format {x0, y0, x1, y1, x2, y2 ...}
-                cg->clear();
-                cg->addCells(&newCells[0], newCells.size() / 2);
-                cg->update();
-
-                aidrive::Rect2f cellDim{cellSize, cellSize}; // cell dimension
-                auto cells = cg->getCells();
-
-                // for (auto it = cells->begin(); it != cells->end(); ++it)
-                // {
-                //     aidrive::Vector2f cellCenter = it->getCenter(cellSize);
-                //     m_renderer.drawRect(aidrive::Vector3f(cellCenter.x(), cellCenter.y(), 0.0f),
-                //                         cellDim,
-                //                         aidrive::render::COLOR_BLACK);
-                // }
-
-                if (ImGui::SmallButton("Plan A*"))
+                static ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_Reorderable;
+                if (ImGui::BeginTabBar("MyTabBar", tab_bar_flags))
                 {
-                    std::cout << "Plan A* now." << std::endl;
-                    searchLines.clear();
-
-                    int32_t reedsSheppN = 100;
-                    astar.findPath(aidrive::Vector2f{pose[0], pose[1]},
-                                   aidrive::Vector2f{std::cos(pose[2]), std::sin(pose[2])},
-                                   DrivingState::STANDING,
-                                   aidrive::Vector2f{objP[0], objP[1]},
-                                   aidrive::Vector2f{std::cos(objP[2]), std::sin(objP[2])}, // can expose this later
-                                   DrivingState::STANDING,
-                                   reedsSheppN,
-                                   0);
-
-                    uint32_t cnt = astar.getPathCount();
-                    std::vector<aidrive::Vector2f> newPath(cnt);
-                    std::vector<aidrive::Vector2f> newHeadings(cnt);
-                    std::vector<DrivingState> newDirs(cnt);
-                    astar.getPath(&newPath[0].x(), &newHeadings[0].x(), &newDirs[0], cnt);
-
-                    // poly = convertToTrajectory(newPath);
-
-                    constexpr bool renderSearchLine = true;
-                    if (renderSearchLine)
+                    if (ImGui::BeginTabItem("main"))
                     {
-                        std::cout << "renderSearchLine option is on" << std::endl;
 
-                        uint32_t cnt = 0u;
+                        // custom rendering
+                        ImDrawList* drawList = ImGui::GetWindowDrawList();
+                        m_renderer.setImDrawList(drawList);
 
-                        astar.getSearchLines(nullptr, &cnt);
-                        searchLines.resize(cnt * 2); // cnt is line count
-                                                     // point count will be 2 * cnt
-                        astar.getSearchLines(&searchLines[0].x(), &cnt);
+                        ImGui::PushItemWidth(100.f);
+                        ImGui::Checkbox("use terminal condition", &useTermCond);
+                        ImGui::Checkbox("show state machine", &showSM);
+                        ImGui::SliderFloat("x", &pose[0], -50.0f, 50.0f, "%.1f");
+                        ImGui::SameLine();
+                        ImGui::SliderFloat("y", &pose[1], -50.0f, 50.0f, "%.1f");
+                        ImGui::SliderAngle("theta", &pose[2], 0.0f, 360.0f, "%.1f");
+                        ImGui::SliderFloat("k", &curvature, -0.3f, 0.3f, "%.3f");
+                        ImGui::SliderFloat("cte", &initError, -2.0f, 2.0f, "%.3f");
+                        ImGui::SameLine();
+                        ImGui::SliderFloat("kweight", &kweight, 0.0f, 50.0f, "%.1f");
+                        ImGui::SameLine();
+                        ImGui::Checkbox("peicewise", &piecewise);
 
-                        cnt = 0u;
-                        astar.getDStarLitePath(nullptr, &cnt);
-                        newPath.resize(cnt);
-                        astar.getDStarLitePath(&newPath[0].x(), &cnt);
+                        // green curve
+                        // gen traj
 
-                        dStarPath = convertToTrajectory(newPath);
+                        std::vector<aidrive::Vector3f> poly{};
+                        if (!piecewise)
+                        {
+                            poly = aidrive::generatePolyline({0.0f, initError, 0.0f},
+                                                             curvature,
+                                                             0.5f,
+                                                             30.0f);
+                        }
+                        else
+                        {
+                            // first piece
+                            poly = aidrive::generatePolyline({0.0f, initError, 0.0f},
+                                                             curvature,
+                                                             0.5f,
+                                                             15.0f);
+
+                            // second piece
+                            std::vector<aidrive::Vector3f> poly1 =
+                                aidrive::generatePolyline({15.0f, 0, 0.0f},
+                                                          curvature,
+                                                          0.5f,
+                                                          15.0f);
+                            poly.insert(std::end(poly), std::begin(poly1), std::end(poly1));
+                        }
+
+                        m_renderer.drawPolyline(poly, aidrive::Vector3f{0.0f, 0.0f, 0.0f}, aidrive::render::COLOR_GREEN);
+
+                        std::vector<aidrive::Vector3f> predPoly{};
+                        ctrl.setCurvatureWeight(static_cast<float64_t>(kweight));
+                        TIME_IT("path opt", predPoly = ctrl.optimize(poly));
+
+                        // draw ego
+                        m_renderer.drawRect(pose, dim);
+                        // draw obstacle
+                        m_renderer.drawRect(objP, dim);
+
+                        m_renderer.drawPolyline(predPoly, pose, aidrive::render::COLOR_BLUE);
+
+                        ImGui::EndTabItem();
                     }
-                    else
+                    if (ImGui::BeginTabItem("hybrid A*"))
                     {
-                        std::cout << "renderSearchLine option is off" << std::endl;
+                        ImGui::PushItemWidth(100);
+                        // start pose
+                        ImGui::SliderFloat("x", &pose[0], -50.0f, 50.0f, "%.1f");
+                        ImGui::SameLine();
+                        ImGui::SliderFloat("y", &pose[1], -50.0f, 50.0f, "%.1f");
+                        ImGui::SameLine();
+                        ImGui::SliderAngle("theta", &pose[2], 0.0f, 360.0f, "%.1f");
+
+                        // end pose
+                        ImGui::SliderFloat("obj x", &objP[0], 0.f, 50.0f, "%.1f");
+                        ImGui::SameLine();
+                        ImGui::SliderFloat("obj y", &objP[1], 0.f, 50.0f, "%.1f");
+                        ImGui::SameLine();
+                        ImGui::SliderFloat("obj theta", &objP[2], -3.14, 3.14, "%.1f");
+
+                        ImGui::PopItemWidth();
+
+                        // mock collision grid
+                        std::shared_ptr<CollisionGrid> cg = astar.getDStarLite()->getCollisionGrid();
+                        float32_t cellSize                = cg->getCellSize();
+                        std::vector<float32_t> newCells{10.0f, 5.0f,
+                                                        10.0f, 4.0f,
+                                                        10.0f, -1.0f,
+                                                        10.0f, 0.0f,
+                                                        10.0f, 1.0f,
+                                                        10.0f, 2.0f,
+                                                        10.0f, 3.0f}; // format {x0, y0, x1, y1, x2, y2 ...}
+                        cg->clear();
+                        cg->addCells(&newCells[0], newCells.size() / 2);
+                        cg->update();
+
+                        aidrive::Rect2f cellDim{cellSize, cellSize}; // cell dimension
+                        auto cells = cg->getCells();
+
+                        for (auto it = cells->begin(); it != cells->end(); ++it)
+                        {
+                            aidrive::Vector2f cellCenter = it->getCenter(cellSize);
+                            m_renderer.drawRect(aidrive::Vector3f(cellCenter.x(), cellCenter.y(), 0.0f),
+                                                cellDim,
+                                                aidrive::render::COLOR_BLACK);
+                        }
+
+                        if (ImGui::SmallButton("Plan A*"))
+                        {
+                            std::cout << "Plan A* now." << std::endl;
+                            std::vector<aidrive::Vector3f> poly{};
+
+                            searchLines.clear();
+                            dStarPath.clear();
+                            aStarPath.clear();
+
+                            int32_t reedsSheppN = 100;
+                            astar.findPath(aidrive::Vector2f{pose[0], pose[1]},
+                                           aidrive::Vector2f{std::cos(pose[2]), std::sin(pose[2])},
+                                           DrivingState::STANDING,
+                                           aidrive::Vector2f{objP[0], objP[1]},
+                                           aidrive::Vector2f{std::cos(objP[2]), std::sin(objP[2])}, // can expose this later
+                                           DrivingState::STANDING,
+                                           reedsSheppN,
+                                           0);
+
+                            uint32_t cnt = astar.getPathCount();
+                            std::vector<aidrive::Vector2f> newPath(cnt);
+                            std::vector<aidrive::Vector2f> newHeadings(cnt);
+                            std::vector<DrivingState> newDirs(cnt);
+                            astar.getPath(&newPath[0].x(), &newHeadings[0].x(), &newDirs[0], cnt);
+
+                            aStarPath = convertToTrajectory(newPath);
+
+                            constexpr bool renderSearchLine = true;
+                            if (renderSearchLine)
+                            {
+                                std::cout << "renderSearchLine option is on" << std::endl;
+
+                                uint32_t cnt = 0u;
+
+                                astar.getSearchLines(nullptr, &cnt);
+                                searchLines.resize(cnt * 2); // cnt is line count
+                                                             // point count will be 2 * cnt
+                                astar.getSearchLines(&searchLines[0].x(), &cnt);
+
+                                cnt = 0u;
+                                astar.getDStarLitePath(nullptr, &cnt);
+                                newPath.resize(cnt);
+                                astar.getDStarLitePath(&newPath[0].x(), &cnt);
+
+                                dStarPath = convertToTrajectory(newPath);
+                            }
+                            else
+                            {
+                                std::cout << "renderSearchLine option is off" << std::endl;
+                            }
+                        }
+                        m_renderer.drawSearchLines(searchLines, aidrive::render::COLOR_SILVER);
+
+                        // draw ego
+                        m_renderer.drawRect(pose, dim);
+                        // draw obstacle
+                        m_renderer.drawRect(objP, dim);
+                        // draw reference
+                        m_renderer.drawPolyline(aStarPath, aidrive::Vector3f{0.0f, 0.0f, 0.0f}, aidrive::render::COLOR_GREEN);
+                        // don't need to tf the astar path to global.
+                        m_renderer.drawPolyline(dStarPath, aidrive::Vector3f{0.0f, 0.0f, 0.0f}, aidrive::render::COLOR_ORANGE);
+
+                        ImGui::EndTabItem();
                     }
-                }
-                m_renderer.drawSearchLines(searchLines, aidrive::render::COLOR_SILVER);
-                ImGui::PopItemWidth();
 
-                // draw ego
-                m_renderer.drawRect(pose, dim);
-                // draw obstacle
-                // m_renderer.drawRect(objP, dim);
-                // draw reference
-                // m_renderer.drawPolyline(poly, aidrive::Vector3f{0.0f, 0.0f, 0.0f}, aidrive::render::COLOR_GREEN);
-                // don't need to tf the astar path to global.
-                m_renderer.drawPolyline(dStarPath, aidrive::Vector3f{0.0f, 0.0f, 0.0f}, aidrive::render::COLOR_ORANGE);
-
-                if (!useTrajOpt)
-                {
-
-                    // green curve
-                    // gen traj
-
-                    std::vector<aidrive::Vector3f> poly{};
-                    if (!piecewise)
+                    if (ImGui::BeginTabItem("trajectory optimization"))
                     {
-                        poly = aidrive::generatePolyline({0.0f, initError, 0.0f},
-                                                         curvature,
-                                                         0.5f,
-                                                         30.0f);
+                        ImGui::PushItemWidth(100);
+                        ImGui::SliderFloat("vInit", &vInit, 0.0f, 10.0f, "%.2f");
+                        ImGui::SameLine();
+                        ImGui::SliderFloat("vInitY", &vInitY, -10.0f, 10.0f, "%.2f");
+                        ImGui::SameLine();
+                        ImGui::SliderFloat("aInit", &aInit, -2.0f, 2.0f, "%.2f");
+                        ImGui::SliderFloat("obj x", &objP[0], 0.f, 50.0f, "%.1f");
+                        ImGui::SameLine();
+                        ImGui::SliderFloat("obj y", &objP[1], 0.f, 50.0f, "%.1f");
+                        ImGui::SameLine();
+                        ImGui::SliderFloat("obj theta", &objP[2], -3.14, 3.14, "%.1f");
+                        ImGui::SameLine();
+                        ImGui::SliderFloat("obj vx", &objV[0], 0.f, 30.0f, "%.1f");
+                        ImGui::SameLine();
+                        ImGui::SliderFloat("obj vy", &objV[1], 0.f, 30.0f, "%.1f");
+
+                        // parameters
+                        float64_t delta_t =
+                            topt.getDeltaT();
+                        progressCostParameters<float64_t, 30>& progressP =
+                            topt.getProgressCostParameters();
+                        smoothnessCostParameters<float64_t, scalarFunctionWeightedSquare<float64_t>>&
+                            smoothP = topt.getSmoothnessCostParameters();
+                        limitCostParameters<float64_t, scalarFunctionSquaredBarrier<float64_t>>&
+                            limitP = topt.getLimitCostParameters();
+                        actorAvoidanceCostParameters<float64_t, scalarFunctionSquaredBarrier<float64_t>, scalarFunctionSquaredBarrier<float64_t>, scalarFunctionSquaredBarrier<float64_t>, scalarFunctionSquaredBarrier<float64_t>>
+                            actorP = topt.getActorAvoidanceCostParameters();
+
+                        ImGui::InputDouble("k_p", &progressP.k_p, 0.0, 0.0, "%.4f");
+                        ImGui::SameLine();
+                        ImGui::InputDouble("lat", &latWeight, 0.0, 0.0, "%0.4f");
+                        ImGui::SameLine();
+                        ImGui::InputDouble("v_long", &v_long, 0.0, 0.0, "%.7f");
+                        ImGui::SameLine();
+                        ImGui::InputDouble("a_long", &a_long, 0.0, 0.0, "%.7f");
+                        ImGui::SameLine();
+                        ImGui::InputDouble("v_ideal", &limitP.lon_v_ideal, 0.0, 0.0, "%.1f");
+                        ImGui::SameLine();
+                        ImGui::InputDouble("a_ideal", &limitP.lon_a_ideal, 0.0, 0.0, "%.1f");
+                        ImGui::PopItemWidth();
+                        smoothP.setDefault(1.0 / delta_t,
+                                           SMOOTHNESS_COST_WEIGHT_LONG_POSITION_DEFAULT,
+                                           SMOOTHNESS_COST_WEIGHT_LAT_POSITION_DEFAULT,
+                                           v_long,
+                                           SMOOTHNESS_COST_WEIGHT_LAT_VELOCITY_DEFAULT,
+                                           a_long);
+                        limitP.prepare(); // prepare must be called if any attribute of limitP is changed
+                        actorP.setDefaultBySetPoint(progressP.k_p);
+                        // this tunes time-gap
+                        // actorP.printDistanceToVelocityTable(progressP.k_p);
+
+                        // lateral weight
+                        for (size_t i = 0; i < 30; ++i)
+                        {
+                            LatWeight[i].setWeight(latWeight);
+                        }
+
+                        // initial condition
+                        pointsIn[4] = -vInit * delta_t;
+                        pointsIn[5] = -vInitY * delta_t;
+                        pointsIn[2] = -vInit * delta_t * 2;
+                        pointsIn[3] = -vInitY * delta_t * 2;
+                        pointsIn[0] = -vInit * delta_t * 3;
+                        pointsIn[1] = -vInitY * delta_t * 3;
+
+                        // terminal condition
+                        int fixed[60]{0};
+                        if (useTermCond)
+                        {
+                            pointsIn[64] = 20;
+                            pointsIn[65] = -20;
+                            pointsIn[62] = 20;
+                            pointsIn[63] = -23;
+
+                            fixed[59] = fixed[58] = fixed[57] = fixed[56] = 1;
+                        }
+                        topt.setFixed(fixed);
+                        topt.setEgoTrajectory(&pointsIn[6]);
+
+                        // obstacle
+                        prepareContenderData(XC, objP, objV, 30);
+                        topt.setContenderData(XC, nrXC);
+
+                        // topt.set_all_off();
+                        ImGui::Checkbox("actor", &actor_avoidance_cost_on);
+                        if (actor_avoidance_cost_on)
+                            topt.set_actor_avoidance_cost(true);
+                        else
+                            topt.set_actor_avoidance_cost(false);
+                        ImGui::SameLine();
+
+                        ImGui::Checkbox("progress", &progress_cost_on);
+                        if (progress_cost_on)
+                            topt.set_progress_cost(true);
+                        else
+                            topt.set_progress_cost(false);
+                        ImGui::SameLine();
+
+                        ImGui::Checkbox("smooth", &smoothness_cost_on);
+                        if (smoothness_cost_on)
+                            topt.set_smoothness_cost(true);
+                        else
+                            topt.set_smoothness_cost(false);
+                        ImGui::SameLine();
+
+                        ImGui::Checkbox("limit", &limit_cost_on);
+                        if (limit_cost_on)
+                            topt.set_limit_cost(true);
+                        else
+                            topt.set_limit_cost(false);
+                        ImGui::SameLine();
+
+                        ImGui::Checkbox("lateral", &lateral_cost_on);
+                        if (lateral_cost_on)
+                            topt.set_lateral_cost(true);
+                        else
+                            topt.set_lateral_cost(false);
+
+                        // process traj opt
+                        TIME_IT("traj opt", topt.run());
+                        // note, the return excludes history (0 ... 5)
+                        float64_t* result = topt.getEgoTrajectory();
+                        // topt.printTrajectory();
+
+                        // draw ego
+                        m_renderer.drawRect(pose, dim);
+                        // draw obstacle
+                        m_renderer.drawRect(objP, dim);
+
+                        std::vector<aidrive::Vector3f> predPoly = convertToTrajectory<float64_t, 60>(result);
+                        m_renderer.drawPolyline(predPoly, pose, aidrive::render::COLOR_BLUE);
+
+                        std::vector<float32_t> d(30, 0.0f);
+                        std::vector<float32_t> v(30, 0.0f);
+                        std::vector<float32_t> a(30, 0.0f);
+                        std::vector<float32_t> j(30, 0.0f);
+
+                        for (size_t i = 0; i < 30; ++i)
+                        {
+                            d[i] = static_cast<float32_t>(topt.getPosition(i));
+                            v[i] = static_cast<float32_t>(topt.getVelocity(i));
+                            a[i] = static_cast<float32_t>(topt.getAcceleration(i));
+                            j[i] = static_cast<float32_t>(topt.getJerk(i));
+                        }
+
+                        const ImVec2 GRAPH_SIZE{400, 80};
+
+                        ImGui::PlotLines("d", &d[0], d.size(), 0, nullptr, 0.0f, 50.0f, GRAPH_SIZE);
+                        ImGui::PlotLines("v", &v[0], v.size(), 0, nullptr, 0.0f, 10.0f, GRAPH_SIZE);
+                        ImGui::PlotLines("a", &a[0], a.size(), 0, nullptr, -3.0f, 3.0f, GRAPH_SIZE);
+                        ImGui::PlotLines("j", &j[0], j.size(), 0, nullptr, -10.0f, 10.0f, GRAPH_SIZE);
+                        ImGui::EndTabItem();
                     }
-                    else
+
+                    if (ImGui::BeginTabItem("state machine"))
                     {
-                        // first piece
-                        poly = aidrive::generatePolyline({0.0f, initError, 0.0f},
-                                                         curvature,
-                                                         0.5f,
-                                                         15.0f);
+                        {
+                            ImGui::Text("UI events:");
+                            ImGui::Indent();
+                            if (ImGui::SmallButton("engage l1"))
+                                send_event(EngageL1());
+                            ImGui::SameLine();
+                            if (ImGui::SmallButton("engage l2"))
+                                send_event(EngageL2());
+                            ImGui::SameLine();
+                            if (ImGui::SmallButton("engage l3"))
+                                send_event(EngageL3());
+                            ImGui::SameLine();
+                            if (ImGui::SmallButton("engage l4"))
+                                send_event(EngageL4());
+                            ImGui::SameLine();
+                            if (ImGui::SmallButton("disengage"))
+                                send_event(Disengage());
+                            ImGui::SameLine();
+                            if (ImGui::SmallButton("resume"))
+                                send_event(Resume());
+                            if (ImGui::SmallButton("est mission"))
+                                send_event(EstablishMission());
+                            ImGui::SameLine();
+                            if (ImGui::SmallButton("act mission"))
+                                send_event(ActivateMission());
+                            ImGui::SameLine();
+                            if (ImGui::SmallButton("deact mission"))
+                                send_event(DeactivateMission());
+                            ImGui::Unindent();
+                        }
+                        {
+                            ImGui::Text("module events:");
+                            ImGui::Indent();
+                            if (ImGui::SmallButton("ReportLonReady"))
+                                send_event(ReportLonReady());
+                            ImGui::SameLine();
+                            if (ImGui::SmallButton("ReportLatReady"))
+                                send_event(ReportLatReady());
+                            ImGui::SameLine();
+                            if (ImGui::SmallButton("ReportL3Ready"))
+                                send_event(ReportL3Ready());
+                            ImGui::SameLine();
+                            if (ImGui::SmallButton("ReportL3Fail"))
+                                send_event(ReportL3Fail());
+                            ImGui::SameLine();
+                            if (ImGui::Checkbox("EnterWaiting", &waitingOn))
+                            {
+                                if (waitingOn)
+                                    send_event(WaitingOnEvent());
+                                else
+                                    send_event(WaitingOffEvent());
+                            }
+                            ImGui::SameLine();
+                            if (ImGui::SmallButton("EnterHolding"))
+                                send_event(HoldingOnEvent());
+                            if (ImGui::SmallButton("BrakeOverride"))
+                                send_event(BrakeOverride());
+                            ImGui::SameLine();
+                            if (ImGui::Checkbox("ThrottleOverride", &throttleOverrideOn))
+                            {
+                                if (throttleOverrideOn)
+                                    send_event(ThrottleOverride());
+                                else
+                                    send_event(StopThrottleOverride());
+                            }
+                            ImGui::SameLine();
+                            if (ImGui::Checkbox("SteerOverride", &steerOverrideOn))
+                            {
+                                if (steerOverrideOn)
+                                    send_event(SteerOverride());
+                                else
+                                    send_event(StopSteerOverride());
+                            }
+                            ImGui::SameLine();
+                            if (ImGui::SmallButton("AEBTrigger"))
+                                send_event(AEBTrigger());
+                            ImGui::Unindent();
+                        }
+                        {
+                            ImGui::Text("TOP:");
+                            ImGui::Indent();
+                            auto highlightByColor = [](TopEnum test) {
+                                ImVec4 color;
+                                color = (test == Top::getCurrentTopState())
+                                            ? ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_RED)
+                                            : ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_BLACK);
+                                return color;
+                            };
 
-                        // second piece
-                        std::vector<aidrive::Vector3f> poly1 =
-                            aidrive::generatePolyline({15.0f, 0, 0.0f},
-                                                      curvature,
-                                                      0.5f,
-                                                      15.0f);
-                        poly.insert(std::end(poly), std::begin(poly1), std::end(poly1));
+                            ImGui::TextColored(highlightByColor(TopEnum::MANUAL), "Man");
+                            ImGui::SameLine();
+                            ImGui::TextColored(highlightByColor(TopEnum::L1), "L1");
+                            ImGui::SameLine();
+                            ImGui::TextColored(highlightByColor(TopEnum::L2), "L2");
+                            ImGui::SameLine();
+                            ImGui::TextColored(highlightByColor(TopEnum::L3), "L3");
+                            ImGui::SameLine();
+                            ImGui::TextColored(highlightByColor(TopEnum::L4), "L4");
+                            ImGui::Unindent();
+                        }
+                        {
+                            ImGui::Text("LON:");
+                            ImGui::Indent();
+                            auto highlightByColor = [](LonEnum test) {
+                                ImVec4 color;
+                                color = (test == Lon::getCurrentLonState())
+                                            ? ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_RED)
+                                            : ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_BLACK);
+                                return color;
+                            };
+                            ImGui::TextColored(highlightByColor(LonEnum::FAULT), "off");
+                            ImGui::SameLine();
+                            ImGui::TextColored(highlightByColor(LonEnum::READY), "ready");
+                            ImGui::SameLine();
+                            ImGui::TextColored(highlightByColor(LonEnum::CONTROLLING), "controlling");
+                            ImGui::SameLine();
+                            ImGui::TextColored(highlightByColor(LonEnum::OVERRIDEN), "override");
+                            ImGui::SameLine();
+                            ImGui::TextColored(highlightByColor(LonEnum::WAITING), "waiting");
+                            ImGui::SameLine();
+                            ImGui::TextColored(highlightByColor(LonEnum::HOLDING), "holding");
+                            ImGui::Unindent();
+                        }
+                        {
+                            ImGui::Text("LAT:");
+                            ImGui::Indent();
+                            auto highlightByColor = [](LatEnum test) {
+                                ImVec4 color;
+                                color = (test == Lat::getCurrentLatState())
+                                            ? ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_RED)
+                                            : ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_BLACK);
+                                return color;
+                            };
+                            ImGui::TextColored(highlightByColor(LatEnum::FAULT), "off");
+                            ImGui::SameLine();
+                            ImGui::TextColored(highlightByColor(LatEnum::READY), "ready");
+                            ImGui::SameLine();
+                            ImGui::TextColored(highlightByColor(LatEnum::CONTROLLING), "controlling");
+                            ImGui::SameLine();
+                            ImGui::TextColored(highlightByColor(LatEnum::OVERRIDEN), "override");
+                            ImGui::Unindent();
+                        }
+                        {
+                            ImGui::Text("BP client:");
+                            ImGui::Indent();
+                            auto highlightByColor = [](BPEnum test) {
+                                ImVec4 color;
+                                color = (test == BP::getCurrentState())
+                                            ? ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_RED)
+                                            : ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_BLACK);
+                                return color;
+                            };
+                            ImGui::TextColored(highlightByColor(BPEnum::FAULT), "off");
+                            ImGui::SameLine();
+                            ImGui::TextColored(highlightByColor(BPEnum::ACC), "ACC");
+                            ImGui::SameLine();
+                            ImGui::TextColored(highlightByColor(BPEnum::ACCLK), "ACCLK");
+                            ImGui::SameLine();
+                            ImGui::TextColored(highlightByColor(BPEnum::L3inTransit), "L3inTransit");
+                            ImGui::SameLine();
+                            ImGui::TextColored(highlightByColor(BPEnum::L3), "L3");
+                            ImGui::Unindent();
+                        }
+                        {
+                            ImGui::Text("Mission client:");
+                            ImGui::Indent();
+                            auto highlightByColor = [](MissionEnum test) {
+                                ImVec4 color;
+                                color = (test == Mission::getCurrentState())
+                                            ? ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_RED)
+                                            : ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_BLACK);
+                                return color;
+                            };
+                            ImGui::TextColored(highlightByColor(MissionEnum::OFF), "off");
+                            ImGui::SameLine();
+                            ImGui::TextColored(highlightByColor(MissionEnum::ESTABLISHED), "EST");
+                            ImGui::SameLine();
+                            ImGui::TextColored(highlightByColor(MissionEnum::ACTIVATED), "ACT");
+                            ImGui::SameLine();
+                            ImGui::TextColored(highlightByColor(MissionEnum::ACTIVATED_NEW_ESTABLISHED), "ACT_NEW_EST");
+                            ImGui::Unindent();
+                        }
+                        {
+                            ImGui::Text("AEB client");
+                            ImGui::Indent();
+                            auto highlightByColor = [](AEBEnum test) {
+                                ImVec4 color;
+                                color = (test == AEB::getCurrentState())
+                                            ? ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_RED)
+                                            : ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_BLACK);
+                                return color;
+                            };
+                            ImGui::TextColored(highlightByColor(AEBEnum::OFF), "off");
+                            ImGui::SameLine();
+                            ImGui::TextColored(highlightByColor(AEBEnum::MONITORING), "monitoring");
+                            ImGui::SameLine();
+                            ImGui::TextColored(highlightByColor(AEBEnum::ACTUATING), "actuating");
+                            ImGui::SameLine();
+                            ImGui::Unindent();
+                        }
+
+                        ImGui::EndTabItem();
                     }
-
-                    m_renderer.drawPolyline(poly, aidrive::Vector3f{0.0f, 0.0f, 0.0f}, aidrive::render::COLOR_GREEN);
-
-                    std::vector<aidrive::Vector3f> predPoly{};
-                    ctrl.setCurvatureWeight(static_cast<float64_t>(kweight));
-                    TIME_IT("path opt", predPoly = ctrl.optimize(poly));
-
-                    m_renderer.drawPolyline(predPoly, pose, aidrive::render::COLOR_BLUE);
-                }
-                else
-                {
-                    // parameters
-                    float64_t delta_t =
-                        topt.getDeltaT();
-                    progressCostParameters<float64_t, 30>& progressP =
-                        topt.getProgressCostParameters();
-                    smoothnessCostParameters<float64_t, scalarFunctionWeightedSquare<float64_t>>&
-                        smoothP = topt.getSmoothnessCostParameters();
-                    limitCostParameters<float64_t, scalarFunctionSquaredBarrier<float64_t>>&
-                        limitP = topt.getLimitCostParameters();
-                    actorAvoidanceCostParameters<float64_t, scalarFunctionSquaredBarrier<float64_t>, scalarFunctionSquaredBarrier<float64_t>, scalarFunctionSquaredBarrier<float64_t>, scalarFunctionSquaredBarrier<float64_t>>
-                        actorP = topt.getActorAvoidanceCostParameters();
-
-                    ImGui::PushItemWidth(50.f);
-                    ImGui::InputDouble("k_p", &progressP.k_p, 0.0, 0.0, "%.4f");
-                    ImGui::SameLine();
-                    ImGui::InputDouble("lat", &latWeight, 0.0, 0.0, "%0.4f");
-                    ImGui::SameLine();
-                    ImGui::InputDouble("v_long", &v_long, 0.0, 0.0, "%.7f");
-                    ImGui::SameLine();
-                    ImGui::InputDouble("a_long", &a_long, 0.0, 0.0, "%.7f");
-                    ImGui::SameLine();
-                    ImGui::InputDouble("v_ideal", &limitP.lon_v_ideal, 0.0, 0.0, "%.1f");
-                    ImGui::SameLine();
-                    ImGui::InputDouble("a_ideal", &limitP.lon_a_ideal, 0.0, 0.0, "%.1f");
-                    ImGui::PopItemWidth();
-                    smoothP.setDefault(1.0 / delta_t,
-                                       SMOOTHNESS_COST_WEIGHT_LONG_POSITION_DEFAULT,
-                                       SMOOTHNESS_COST_WEIGHT_LAT_POSITION_DEFAULT,
-                                       v_long,
-                                       SMOOTHNESS_COST_WEIGHT_LAT_VELOCITY_DEFAULT,
-                                       a_long);
-                    limitP.prepare(); // prepare must be called if any attribute of limitP is changed
-                    actorP.setDefaultBySetPoint(progressP.k_p);
-                    // this tunes time-gap
-                    // actorP.printDistanceToVelocityTable(progressP.k_p);
-
-                    // lateral weight
-                    for (size_t i = 0; i < 30; ++i)
+                    if (ImGui::BeginTabItem("speed optimization"))
                     {
-                        LatWeight[i].setWeight(latWeight);
+                        ImGui::PushItemWidth(100.f);
+
+                        ImGui::SliderFloat("vInit", &vInit, 0.0f, 10.0f, "%.2f");
+                        ImGui::SameLine();
+                        ImGui::SliderFloat("aInit", &aInit, -2.0f, 2.0f, "%.2f");
+                        ImGui::PopItemWidth();
+
+                        ImGui::Checkbox("enable curve speed term", &speedOpt.getCurveSpeedToggle());
+
+                        TIME_IT("speed opt", speedOpt.optimize(vInit, aInit));
+
+                        const ImVec2 GRAPH_SIZE{600, 120};
+
+                        auto d = speedOpt.getD();
+                        ImGui::PlotLines("d", &d[0], d.size(), 0, nullptr, 0.0f, 50.0f, GRAPH_SIZE);
+
+                        auto v = speedOpt.getV();
+                        ImGui::PlotLines("v", &v[0], v.size(), 0, nullptr, 0.0f, 10.0f, GRAPH_SIZE);
+
+                        auto a = speedOpt.getA();
+                        ImGui::PlotLines("a", &a[0], a.size(), 0, nullptr, -3.0f, 3.0f, GRAPH_SIZE);
+
+                        // auto j = speedOpt.getJ();
+                        // ImGui::PlotLines("j", &j[0], j.size(), 0, nullptr, -10.0f, 10.0f, GRAPH_SIZE);
+
+                        auto speedLimit = speedOpt.getSpeedLimit();
+                        ImGui::PlotLines("v limit", &speedLimit[0], speedLimit.size(), 0, nullptr, 0.0f, 30.0f, GRAPH_SIZE);
+
+                        // auto vAsFunctionOfD = speedOpt.getVAsFunctionOfD();
+                        // ImGui::PlotLines("v", &vAsFunctionOfD[0], vAsFunctionOfD.size(), 0, nullptr, 0.0f, 30.0f, GRAPH_SIZE);
+                        ImGui::EndTabItem();
                     }
-
-                    // initial condition
-                    pointsIn[4] = -vInit * delta_t;
-                    pointsIn[5] = -vInitY * delta_t;
-                    pointsIn[2] = -vInit * delta_t * 2;
-                    pointsIn[3] = -vInitY * delta_t * 2;
-                    pointsIn[0] = -vInit * delta_t * 3;
-                    pointsIn[1] = -vInitY * delta_t * 3;
-
-                    // terminal condition
-                    int fixed[60]{0};
-                    if (useTermCond)
-                    {
-                        pointsIn[64] = 20;
-                        pointsIn[65] = -20;
-                        pointsIn[62] = 20;
-                        pointsIn[63] = -23;
-
-                        fixed[59] = fixed[58] = fixed[57] = fixed[56] = 1;
-                    }
-                    topt.setFixed(fixed);
-                    topt.setEgoTrajectory(&pointsIn[6]);
-
-                    // obstacle
-                    prepareContenderData(XC, objP, objV, 30);
-                    topt.setContenderData(XC, nrXC);
-
-                    // topt.set_all_off();
-                    ImGui::Checkbox("actor", &actor_avoidance_cost_on);
-                    if (actor_avoidance_cost_on)
-                        topt.set_actor_avoidance_cost(true);
-                    else
-                        topt.set_actor_avoidance_cost(false);
-                    ImGui::SameLine();
-
-                    ImGui::Checkbox("progress", &progress_cost_on);
-                    if (progress_cost_on)
-                        topt.set_progress_cost(true);
-                    else
-                        topt.set_progress_cost(false);
-                    ImGui::SameLine();
-
-                    ImGui::Checkbox("smooth", &smoothness_cost_on);
-                    if (smoothness_cost_on)
-                        topt.set_smoothness_cost(true);
-                    else
-                        topt.set_smoothness_cost(false);
-                    ImGui::SameLine();
-
-                    ImGui::Checkbox("limit", &limit_cost_on);
-                    if (limit_cost_on)
-                        topt.set_limit_cost(true);
-                    else
-                        topt.set_limit_cost(false);
-                    ImGui::SameLine();
-
-                    ImGui::Checkbox("lateral", &lateral_cost_on);
-                    if (lateral_cost_on)
-                        topt.set_lateral_cost(true);
-                    else
-                        topt.set_lateral_cost(false);
-
-                    // process traj opt
-                    TIME_IT("traj opt", topt.run());
-                    // note, the return excludes history (0 ... 5)
-                    float64_t* result = topt.getEgoTrajectory();
-                    // topt.printTrajectory();
-
-                    std::vector<aidrive::Vector3f> predPoly = convertToTrajectory<float64_t, 60>(result);
-                    m_renderer.drawPolyline(predPoly, pose, aidrive::render::COLOR_BLUE);
-                }
+                    ImGui::EndTabBar();
+                } // BeginTabBar
             }
             ImGui::End();
-
-            TIME_IT("speed opt", speedOpt.optimize(vInit, aInit));
-
-            ImGui::SetNextWindowPos(ImVec2(WINDOW_WIDTH - 700, WINDOW_HEIGHT - 600), ImGuiCond_Appearing);
-            ImGui::SetNextWindowSize(ImVec2(700, 600), ImGuiCond_Appearing);
-
-            ImGui::Begin("2d plot");
-            {
-                const ImVec2 GRAPH_SIZE{600, 120};
-
-                if (!useTrajOpt)
-                {
-                    auto d = speedOpt.getD();
-                    ImGui::PlotLines("d", &d[0], d.size(), 0, nullptr, 0.0f, 50.0f, GRAPH_SIZE);
-
-                    auto v = speedOpt.getV();
-                    ImGui::PlotLines("v", &v[0], v.size(), 0, nullptr, 0.0f, 10.0f, GRAPH_SIZE);
-
-                    auto a = speedOpt.getA();
-                    ImGui::PlotLines("a", &a[0], a.size(), 0, nullptr, -3.0f, 3.0f, GRAPH_SIZE);
-
-                    // auto j = speedOpt.getJ();
-                    // ImGui::PlotLines("j", &j[0], j.size(), 0, nullptr, -10.0f, 10.0f, GRAPH_SIZE);
-
-                    auto speedLimit = speedOpt.getSpeedLimit();
-                    ImGui::PlotLines("v limit", &speedLimit[0], speedLimit.size(), 0, nullptr, 0.0f, 30.0f, GRAPH_SIZE);
-
-                    // auto vAsFunctionOfD = speedOpt.getVAsFunctionOfD();
-                    // ImGui::PlotLines("v", &vAsFunctionOfD[0], vAsFunctionOfD.size(), 0, nullptr, 0.0f, 30.0f, GRAPH_SIZE);
-                }
-                else
-                {
-                    std::vector<float32_t> d(30, 0.0f);
-                    std::vector<float32_t> v(30, 0.0f);
-                    std::vector<float32_t> a(30, 0.0f);
-                    std::vector<float32_t> j(30, 0.0f);
-
-                    for (size_t i = 0; i < 30; ++i)
-                    {
-                        d[i] = static_cast<float32_t>(topt.getPosition(i));
-                        v[i] = static_cast<float32_t>(topt.getVelocity(i));
-                        a[i] = static_cast<float32_t>(topt.getAcceleration(i));
-                        j[i] = static_cast<float32_t>(topt.getJerk(i));
-                    }
-                    ImGui::PlotLines("d", &d[0], d.size(), 0, nullptr, 0.0f, 50.0f, GRAPH_SIZE);
-                    ImGui::PlotLines("v", &v[0], v.size(), 0, nullptr, 0.0f, 10.0f, GRAPH_SIZE);
-                    ImGui::PlotLines("a", &a[0], a.size(), 0, nullptr, -3.0f, 3.0f, GRAPH_SIZE);
-                    ImGui::PlotLines("j", &j[0], j.size(), 0, nullptr, -10.0f, 10.0f, GRAPH_SIZE);
-                }
-            }
-            ImGui::End();
-
-            if (showSM)
-            {
-                ImGui::SetNextWindowPos(ImVec2(0, WINDOW_HEIGHT - 350), ImGuiCond_Appearing);
-                ImGui::SetNextWindowSize(ImVec2(750, 350), ImGuiCond_Appearing);
-                ImGui::Begin("state machine");
-                {
-                    {
-                        ImGui::Text("UI events:");
-                        ImGui::Indent();
-                        if (ImGui::SmallButton("engage l1"))
-                            send_event(EngageL1());
-                        ImGui::SameLine();
-                        if (ImGui::SmallButton("engage l2"))
-                            send_event(EngageL2());
-                        ImGui::SameLine();
-                        if (ImGui::SmallButton("engage l3"))
-                            send_event(EngageL3());
-                        ImGui::SameLine();
-                        if (ImGui::SmallButton("engage l4"))
-                            send_event(EngageL4());
-                        ImGui::SameLine();
-                        if (ImGui::SmallButton("disengage"))
-                            send_event(Disengage());
-                        ImGui::SameLine();
-                        if (ImGui::SmallButton("resume"))
-                            send_event(Resume());
-                        if (ImGui::SmallButton("est mission"))
-                            send_event(EstablishMission());
-                        ImGui::SameLine();
-                        if (ImGui::SmallButton("act mission"))
-                            send_event(ActivateMission());
-                        ImGui::SameLine();
-                        if (ImGui::SmallButton("deact mission"))
-                            send_event(DeactivateMission());
-                        ImGui::Unindent();
-                    }
-                    {
-                        ImGui::Text("module events:");
-                        ImGui::Indent();
-                        if (ImGui::SmallButton("ReportLonReady"))
-                            send_event(ReportLonReady());
-                        ImGui::SameLine();
-                        if (ImGui::SmallButton("ReportLatReady"))
-                            send_event(ReportLatReady());
-                        ImGui::SameLine();
-                        if (ImGui::SmallButton("ReportL3Ready"))
-                            send_event(ReportL3Ready());
-                        ImGui::SameLine();
-                        if (ImGui::SmallButton("ReportL3Fail"))
-                            send_event(ReportL3Fail());
-                        ImGui::SameLine();
-                        if (ImGui::Checkbox("EnterWaiting", &waitingOn))
-                        {
-                            if (waitingOn)
-                                send_event(WaitingOnEvent());
-                            else
-                                send_event(WaitingOffEvent());
-                        }
-                        ImGui::SameLine();
-                        if (ImGui::SmallButton("EnterHolding"))
-                            send_event(HoldingOnEvent());
-                        if (ImGui::SmallButton("BrakeOverride"))
-                            send_event(BrakeOverride());
-                        ImGui::SameLine();
-                        if (ImGui::Checkbox("ThrottleOverride", &throttleOverrideOn))
-                        {
-                            if (throttleOverrideOn)
-                                send_event(ThrottleOverride());
-                            else
-                                send_event(StopThrottleOverride());
-                        }
-                        ImGui::SameLine();
-                        if (ImGui::Checkbox("SteerOverride", &steerOverrideOn))
-                        {
-                            if (steerOverrideOn)
-                                send_event(SteerOverride());
-                            else
-                                send_event(StopSteerOverride());
-                        }
-                        ImGui::SameLine();
-                        if (ImGui::SmallButton("AEBTrigger"))
-                            send_event(AEBTrigger());
-                        ImGui::Unindent();
-                    }
-                    {
-                        ImGui::Text("TOP:");
-                        ImGui::Indent();
-                        auto highlightByColor = [](TopEnum test) {
-                            ImVec4 color;
-                            color = (test == Top::getCurrentTopState())
-                                        ? ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_RED)
-                                        : ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_BLACK);
-                            return color;
-                        };
-
-                        ImGui::TextColored(highlightByColor(TopEnum::MANUAL), "Man");
-                        ImGui::SameLine();
-                        ImGui::TextColored(highlightByColor(TopEnum::L1), "L1");
-                        ImGui::SameLine();
-                        ImGui::TextColored(highlightByColor(TopEnum::L2), "L2");
-                        ImGui::SameLine();
-                        ImGui::TextColored(highlightByColor(TopEnum::L3), "L3");
-                        ImGui::SameLine();
-                        ImGui::TextColored(highlightByColor(TopEnum::L4), "L4");
-                        ImGui::Unindent();
-                    }
-                    {
-                        ImGui::Text("LON:");
-                        ImGui::Indent();
-                        auto highlightByColor = [](LonEnum test) {
-                            ImVec4 color;
-                            color = (test == Lon::getCurrentLonState())
-                                        ? ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_RED)
-                                        : ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_BLACK);
-                            return color;
-                        };
-                        ImGui::TextColored(highlightByColor(LonEnum::FAULT), "off");
-                        ImGui::SameLine();
-                        ImGui::TextColored(highlightByColor(LonEnum::READY), "ready");
-                        ImGui::SameLine();
-                        ImGui::TextColored(highlightByColor(LonEnum::CONTROLLING), "controlling");
-                        ImGui::SameLine();
-                        ImGui::TextColored(highlightByColor(LonEnum::OVERRIDEN), "override");
-                        ImGui::SameLine();
-                        ImGui::TextColored(highlightByColor(LonEnum::WAITING), "waiting");
-                        ImGui::SameLine();
-                        ImGui::TextColored(highlightByColor(LonEnum::HOLDING), "holding");
-                        ImGui::Unindent();
-                    }
-                    {
-                        ImGui::Text("LAT:");
-                        ImGui::Indent();
-                        auto highlightByColor = [](LatEnum test) {
-                            ImVec4 color;
-                            color = (test == Lat::getCurrentLatState())
-                                        ? ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_RED)
-                                        : ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_BLACK);
-                            return color;
-                        };
-                        ImGui::TextColored(highlightByColor(LatEnum::FAULT), "off");
-                        ImGui::SameLine();
-                        ImGui::TextColored(highlightByColor(LatEnum::READY), "ready");
-                        ImGui::SameLine();
-                        ImGui::TextColored(highlightByColor(LatEnum::CONTROLLING), "controlling");
-                        ImGui::SameLine();
-                        ImGui::TextColored(highlightByColor(LatEnum::OVERRIDEN), "override");
-                        ImGui::Unindent();
-                    }
-                    {
-                        ImGui::Text("BP client:");
-                        ImGui::Indent();
-                        auto highlightByColor = [](BPEnum test) {
-                            ImVec4 color;
-                            color = (test == BP::getCurrentState())
-                                        ? ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_RED)
-                                        : ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_BLACK);
-                            return color;
-                        };
-                        ImGui::TextColored(highlightByColor(BPEnum::FAULT), "off");
-                        ImGui::SameLine();
-                        ImGui::TextColored(highlightByColor(BPEnum::ACC), "ACC");
-                        ImGui::SameLine();
-                        ImGui::TextColored(highlightByColor(BPEnum::ACCLK), "ACCLK");
-                        ImGui::SameLine();
-                        ImGui::TextColored(highlightByColor(BPEnum::L3inTransit), "L3inTransit");
-                        ImGui::SameLine();
-                        ImGui::TextColored(highlightByColor(BPEnum::L3), "L3");
-                        ImGui::Unindent();
-                    }
-                    {
-                        ImGui::Text("Mission client:");
-                        ImGui::Indent();
-                        auto highlightByColor = [](MissionEnum test) {
-                            ImVec4 color;
-                            color = (test == Mission::getCurrentState())
-                                        ? ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_RED)
-                                        : ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_BLACK);
-                            return color;
-                        };
-                        ImGui::TextColored(highlightByColor(MissionEnum::OFF), "off");
-                        ImGui::SameLine();
-                        ImGui::TextColored(highlightByColor(MissionEnum::ESTABLISHED), "EST");
-                        ImGui::SameLine();
-                        ImGui::TextColored(highlightByColor(MissionEnum::ACTIVATED), "ACT");
-                        ImGui::SameLine();
-                        ImGui::TextColored(highlightByColor(MissionEnum::ACTIVATED_NEW_ESTABLISHED), "ACT_NEW_EST");
-                        ImGui::Unindent();
-                    }
-                    {
-                        ImGui::Text("AEB client");
-                        ImGui::Indent();
-                        auto highlightByColor = [](AEBEnum test) {
-                            ImVec4 color;
-                            color = (test == AEB::getCurrentState())
-                                        ? ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_RED)
-                                        : ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_BLACK);
-                            return color;
-                        };
-                        ImGui::TextColored(highlightByColor(AEBEnum::OFF), "off");
-                        ImGui::SameLine();
-                        ImGui::TextColored(highlightByColor(AEBEnum::MONITORING), "monitoring");
-                        ImGui::SameLine();
-                        ImGui::TextColored(highlightByColor(AEBEnum::ACTUATING), "actuating");
-                        ImGui::SameLine();
-                        ImGui::Unindent();
-                    }
-                }
-                ImGui::End();
-            } // if showSM
         }
 
         // Rendering

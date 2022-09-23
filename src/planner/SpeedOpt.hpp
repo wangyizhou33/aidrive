@@ -14,6 +14,9 @@ class SpeedOpt
 public:
     SpeedOpt();
 
+    // this interface works directly with imgui::CheckBox
+    bool& getCurveSpeedToggle() { return m_curveSpeedOn;};
+
     void optimize(float32_t vInit,
                   float32_t aInit);
 
@@ -33,6 +36,8 @@ private:
     float64_t m_v[OPT_STEPS]{};
     float64_t m_a[OPT_STEPS]{};
     float64_t m_j[OPT_STEPS]{};
+
+    bool m_curveSpeedOn{true};
 
 }; // class SpeedOpt
 
