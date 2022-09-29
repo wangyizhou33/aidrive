@@ -16,6 +16,122 @@ using ceres::Solve;
 using ceres::Solver;
 using ceres::TrivialLoss;
 
+#define SMOOTH_BARRIER_FUNCTION_MAX 1e5
+#define ACTOR_AVOIDANCE_MAX 1e5
+
+template <class T>
+inline int smoothBarrierFunction(T& h, T x, T k_h = ((T)1.0), T x_onset = ((T)0.0), T x_max = ((T)1.0),
+                                 T h_max = ((T)SMOOTH_BARRIER_FUNCTION_MAX))
+{
+    T xo_mx, xm_mx;
+
+    xo_mx = x_onset - x;
+    if (xo_mx >= T(0))
+    {
+        h = ((T)0.0);
+        return (0);
+    }
+
+    xm_mx = x_max - x;
+    if (xm_mx <= T(0))
+    {
+        h = ((T)h_max);
+        return (2);
+    }
+
+    T s = x_max - x_onset;
+    h   = k_h * exp(s * (((T)1.0) / xo_mx + ((T)1.0) / xm_mx));
+    return (1);
+}
+
+struct ActorAvoidanceCostParametersCore
+{
+    float32_t beta_cm = 2.0f;
+    float32_t beta_m  = 2.0f;
+    float32_t beta_cs = 3.0f;
+    float32_t beta_s  = 3.0f;
+};
+
+template <class T>
+inline int actorAvoidanceCostCore(T& b, T x, T v, T xc, T vc, const ActorAvoidanceCostParametersCore* P)
+{
+    T d;
+
+    d = xc - x;
+
+    if (d <= ((T)0.0))
+    {
+        // Failed to separate case
+        b = ((T)(ACTOR_AVOIDANCE_MAX));
+        return (0);
+    }
+    if (vc >= ((T)0.0))
+    {
+        if (v <= ((T)0.0))
+        {
+            // Separating case
+            b = ((T)0.0);
+            return (1);
+        }
+        // Chasing case
+        b = v * v / (T(P->beta_s) * (((T)2.0) * d + vc * vc / T(P->beta_cm)));
+        return (2);
+    }
+    if (v <= ((T)0.0))
+    {
+        // Being chased case
+        b = vc * vc / (T(P->beta_cs) * (((T)2.0) * d + v * v / T(P->beta_m)));
+        return (3);
+    }
+    // Antagonists case
+    b = ((T)0.5) / d * (v * v / T(P->beta_s) + vc * vc / T(P->beta_cs));
+    return (4);
+}
+
+/// use DavidCost with equality constraint only
+/// disable everything else
+class DavidCost
+{
+public:
+    DavidCost(int _i, float32_t _xc, float32_t _vc)
+        : i(_i)
+        , xc(_xc)
+        , vc(_vc){};
+
+    template <typename T>
+    bool operator()(const T* const x,
+                    const T* const v,
+                    T* residual) const
+    {
+        // min |D - d| is effectively max |d|
+        T progress = T(-kp) * T(rho) * x[0];
+
+        T beta{};
+        actorAvoidanceCostCore<T>(beta, x[0], v[0], T(xc), T(vc), &P);
+
+        T barrier{};
+        smoothBarrierFunction<T>(barrier, beta, T(0.1f));
+
+        T actorAvoidanceCost = T(1.0) * T(i) * T(rho) * barrier;
+
+        residual[0] = T(10) * exp(progress + actorAvoidanceCost);
+
+        return true;
+    }
+
+private:
+    int32_t i;
+
+    float32_t kp  = 0.05f;
+    float32_t rho = 0.01f;
+
+    float32_t xc = 30.f;
+    float32_t vc = 0.0f;
+
+    ActorAvoidanceCostParametersCore P{};
+
+}; // class DavidCost
+
 ///
 class ProgressCost
 {
@@ -142,8 +258,27 @@ SpeedOpt::SpeedOpt()
 }
 
 void SpeedOpt::optimize(float32_t vInit,
-                        float32_t aInit)
+                        float32_t aInit,
+                        float32_t xc,
+                        float32_t vc)
 {
+
+    // std::cout << "test barrier ============" << std::endl;
+    // for (float32_t x = -2.0f; x <= 2.0f; x+= .01f)
+    // {
+    //     float32_t y;
+
+    //     smoothBarrierFunction(y, x, 1.f/8.f);
+    //     std::cout << x << ", " << y - x << std::endl;
+    // }
+
+    // std::cout << "test barrier  ============" << std::endl;
+
+    float32_t beta{};
+    ActorAvoidanceCostParametersCore P{};
+    actorAvoidanceCostCore<float32_t>(beta, 0, vInit, xc, vc, &P);
+    std::cout << xc << " " << vc << " " << beta << std::endl;
+
     float64_t d[OPT_STEPS]{};
     float64_t v[OPT_STEPS]{};
     float64_t a[OPT_STEPS]{};
@@ -210,6 +345,12 @@ void SpeedOpt::optimize(float32_t vInit,
 
         // problem.AddResidualBlock(cost1, NULL, &d[tIdx]);
 
+        CostFunction* cost1 =
+            new AutoDiffCostFunction<DavidCost, 1, 1, 1>(
+                new DavidCost(tIdx, xc, vc));
+
+        problem.AddResidualBlock(cost1, NULL, &d[tIdx], &v[tIdx]);
+
         // speed limit
         if (m_curveSpeedOn)
         {
@@ -239,18 +380,18 @@ void SpeedOpt::optimize(float32_t vInit,
         }
 
         // min w_v * sum_i || v_i - v_target||^2
-        {
-            CostFunction* cost5 =
-                new AutoDiffCostFunction<TrivialResidual, 1, 1>(
-                    new TrivialResidual(10.0));
+        // {
+        //     CostFunction* cost5 =
+        //         new AutoDiffCostFunction<TrivialResidual, 1, 1>(
+        //             new TrivialResidual(10.0));
 
-            LossFunction* loss5 = new ScaledLoss(
-                new TrivialLoss(),
-                VEL_WEIGHT,
-                ceres::TAKE_OWNERSHIP);
+        //     LossFunction* loss5 = new ScaledLoss(
+        //         new TrivialLoss(),
+        //         VEL_WEIGHT,
+        //         ceres::TAKE_OWNERSHIP);
 
-            problem.AddResidualBlock(cost5, loss5, &v[tIdx - 1]);
-        }
+        //     problem.AddResidualBlock(cost5, loss5, &v[tIdx - 1]);
+        // }
 
         // add box constraint on a
         {
@@ -268,14 +409,14 @@ void SpeedOpt::optimize(float32_t vInit,
         }
 
         // progress constraint
-        {
-            constexpr float64_t DLIM = 200.0f;
-            CostFunction* cost10 =
-                new AutoDiffCostFunction<InequalityResidual, 1, 1>(
-                    new InequalityResidual(DLIM, InequalityResidual::LESS));
+        // {
+        //     constexpr float64_t DLIM = 200.0f;
+        //     CostFunction* cost10 =
+        //         new AutoDiffCostFunction<InequalityResidual, 1, 1>(
+        //             new InequalityResidual(DLIM, InequalityResidual::LESS));
 
-            problem.AddResidualBlock(cost10, loss8, &d[tIdx]);
-        }
+        //     problem.AddResidualBlock(cost10, loss8, &d[tIdx]);
+        // }
     }
 
     // Build and solve the problem.

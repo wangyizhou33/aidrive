@@ -809,11 +809,21 @@ int main(void)
                         ImGui::SliderFloat("vInit", &vInit, 0.0f, 10.0f, "%.2f");
                         ImGui::SameLine();
                         ImGui::SliderFloat("aInit", &aInit, -2.0f, 2.0f, "%.2f");
+                        ImGui::SameLine();
+                        ImGui::SliderFloat("obj x", &objP[0], 0.f, 50.0f, "%.1f");
+                        ImGui::SameLine();
+                        ImGui::SliderFloat("obj vx", &objV[0], 0.f, 10.0f, "%.1f");
+                        ImGui::SameLine();
                         ImGui::PopItemWidth();
 
                         ImGui::Checkbox("enable curve speed term", &speedOpt.getCurveSpeedToggle());
 
-                        TIME_IT("speed opt", speedOpt.optimize(vInit, aInit));
+                        // draw ego
+                        m_renderer.drawRect(pose, dim);
+                        // draw obstacle
+                        m_renderer.drawRect(objP, dim);
+
+                        TIME_IT("speed opt", speedOpt.optimize(vInit, aInit, objP[0], objV[0]));
 
                         const ImVec2 GRAPH_SIZE{600, 120};
 

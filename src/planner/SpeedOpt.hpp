@@ -18,7 +18,9 @@ public:
     bool& getCurveSpeedToggle() { return m_curveSpeedOn;};
 
     void optimize(float32_t vInit,
-                  float32_t aInit);
+                  float32_t aInit,
+                  float32_t xc,
+                  float32_t vc);
 
     std::vector<float32_t> getD() const;
     std::vector<float32_t> getV() const;
@@ -37,7 +39,7 @@ private:
     float64_t m_a[OPT_STEPS]{};
     float64_t m_j[OPT_STEPS]{};
 
-    bool m_curveSpeedOn{true};
+    bool m_curveSpeedOn{false};
 
 }; // class SpeedOpt
 
