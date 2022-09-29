@@ -8,6 +8,7 @@ add_executable(Test
     TestCeres.cpp
     TestGmock.cpp
     TestCereal.cpp
+    TestDemo.cpp
     main.cpp
 )
 
