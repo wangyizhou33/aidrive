@@ -97,7 +97,8 @@ public:
         {
             const Vector3d& tgt = m_reference[i];
             residual[i * 3 + 0] = (state[0] - tgt[0]);
-            residual[i * 3 + 1] = laneKeepCost(T(state[1]), T(tgt[1]));
+            residual[i * 3 + 1] = (state[1] - tgt[1]);
+            // residual[i * 3 + 1] = laneKeepCost(T(state[1]), T(tgt[1]));
 
             // evolution
             state[0] += cos(state[2]) * DS;
@@ -170,12 +171,23 @@ Controller::optimize(const std::vector<Vector3f>& reference)
                              NULL,
                              &m_cmd[0]);
 
+    for (size_t i = 0; i < OPT_STEPS; ++i)
+    {
+        problem.SetParameterLowerBound(&m_cmd[0], i, -0.1);
+        problem.SetParameterUpperBound(&m_cmd[0], i, 0.1);
+    }
+
     Solver::Options options;
     options.linear_solver_type           = ceres::DENSE_QR;
     options.minimizer_progress_to_stdout = false;
     options.max_num_iterations           = 10;
     Solver::Summary summary;
     Solve(options, &problem, &summary);
+
+    if (!summary.IsSolutionUsable())
+    {
+        std::cerr << "[ceres] solution not usable" << std::endl;
+    }
 
     for (size_t i = 0; i < OPT_STEPS; ++i)
     {
