@@ -27,6 +27,19 @@ void drawRect(ImDrawList* drawList,
     drawList->AddLine(vertices[3], vertices[0], color, thickness);
 }
 
+// with appearance to indicate directionality
+void drawOrientedRect(ImDrawList* drawList,
+                      const std::vector<ImVec2>& vertices,
+                      ImU32 color,
+                      float32_t thickness)
+{
+    for (size_t i = 0u; i + 1 < vertices.size(); ++i)
+    {
+        drawList->AddLine(vertices[i], vertices[i+1], color, thickness);
+    }
+
+}
+
 void drawPolyline(ImDrawList* drawList,
                   const std::vector<ImVec2>& poly,
                   ImU32 color,
@@ -75,10 +88,13 @@ void Renderer::drawRect(const Vector3f& pose,
                                          // origin at upper left corner
 
     std::vector<Vector2f> vertices{};
+    vertices.push_back(pos + rot * Vector2f{dim.length / 6.f, 0.f});
+    vertices.push_back(pos + rot * Vector2f{dim.length / 2.f, 0.f});
     vertices.push_back(pos + rot * Vector2f{dim.length / 2.f, dim.width / 2.f});
     vertices.push_back(pos + rot * Vector2f{dim.length / 2.f, -dim.width / 2.f});
     vertices.push_back(pos + rot * Vector2f{-dim.length / 2.f, -dim.width / 2.f});
     vertices.push_back(pos + rot * Vector2f{-dim.length / 2.f, dim.width / 2.f});
+    vertices.push_back(pos + rot * Vector2f{dim.length / 2.f, dim.width / 2.f});
 
     // convert to pixel coordinates
     std::vector<ImVec2> verticesInPixel{};
@@ -93,7 +109,7 @@ void Renderer::drawRect(const Vector3f& pose,
     // TODO: pass via param[in]
     constexpr float32_t thickness = 1.0f;
 
-    render::drawRect(m_list, verticesInPixel, color, thickness);
+    render::drawOrientedRect(m_list, verticesInPixel, color, thickness);
 }
 
 void Renderer::drawPolyline(const std::vector<Vector3f>& points,

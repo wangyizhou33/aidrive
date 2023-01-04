@@ -225,7 +225,8 @@ int main(void)
                aStarParams.cellSize, 1, angleTolerance,
                aStarParams.distWeight, aStarParams.dirSwitchCost,
                aStarParams.backwardsMultiplier, true, // true means using dstar heuristic, which speeds up the search hopefully. Right now it must be on
-               aStarParams.maxNumCollisionCells, aStarParams.maxPathLength);
+               aStarParams.maxNumCollisionCells, aStarParams.maxPathLength);    
+
     // astar rendering
     std::vector<aidrive::Vector2f> searchLines{};
     std::vector<aidrive::Vector3f> dStarPath{};
@@ -374,6 +375,48 @@ int main(void)
                             m_renderer.drawRect(aidrive::Vector3f(cellCenter.x(), cellCenter.y(), 0.0f),
                                                 cellDim,
                                                 aidrive::render::COLOR_BLACK);
+                        }
+                        ImGui::Text(" note: ReedsShepp is obstacle unaware!");
+                        if (ImGui::SmallButton("Plan ReedsShepp"))
+                        {
+                            ReedsShepp reedsShepp{};
+                            reedsShepp.setParameters(aStarParams.carTurningRadius,
+                                                     aStarParams.backwardsMultiplier,
+                                                     aStarParams.dirSwitchCost);
+                            std::vector<RSPoint> RSPath;
+                            RSPath.resize(100);
+                            uint32_t pathPointCount = 0;
+                            float64_t pathLength    = std::numeric_limits<float64_t>::max();
+
+
+                            RSPoint startState;
+                            startState.x           = pose[0];
+                            startState.y           = pose[1];
+                            startState.orientation = pose[2];
+                            startState.direction   = static_cast<RSDirection>(DrivingState::STANDING);
+
+                            RSPoint targetState;
+
+                            targetState.x           = objP[0];
+                            targetState.y           = objP[1];
+                            targetState.orientation = objP[2];
+                            targetState.direction   = static_cast<RSDirection>(DrivingState::STANDING);
+                            reedsShepp.evaluateRS(&RSPath[0], 
+                                                  &pathPointCount,
+                                                  &pathLength,
+                                                  startState,
+                                                  targetState,
+                                                  aStarParams.cellSize,
+                                                  static_cast<uint32_t>(RSPath.size()));
+
+                            searchLines.clear();
+                            dStarPath.clear();
+                            aStarPath.clear();
+                            for (size_t i = 0u; i < pathPointCount; ++i)
+                            {
+                                const RSPoint& p = RSPath.at(i);
+                                aStarPath.emplace_back(p.x, p.y, p.orientation);
+                            }
                         }
 
                         if (ImGui::SmallButton("Plan A*"))
