@@ -10,6 +10,7 @@
 #include <chrono>
 #include <deque>
 #include <numeric>
+#include <random>
 #include <Eigen/Dense>
 
 // imgui
@@ -26,6 +27,9 @@
 #include <newton/TrajectoryOptimizer.h>
 #include "drivestates.hpp"
 #include <unstructure/HybridAStar.hpp>
+#include <estimator/histogram.hpp>
+#include <estimator/holo_histogram.hpp>
+
 
 static void error_callback(int error, const char* description)
 {
@@ -78,6 +82,28 @@ void prepareContenderData(float64_t** XC, const aidrive::Vector3f p, const aidri
         XC[i][1] = p[1] + v[1] * i;
         XC[i][2] = v[0];
         XC[i][3] = v[1];
+    }
+}
+
+void fromDequeToVector(const std::deque<float32_t>& dq, 
+                       const std::deque<float32_t>& dqW, 
+                       std::vector<float32_t>& hist,
+                       float32_t binSize,
+                       uint32_t numberOfBins,
+                       float32_t limitMin)
+{
+    // Bin data from deque to histogram represented by a vector
+    for (uint32_t i = 0; i < dq.size(); ++i)
+    {
+        if (dq[i] < limitMin)
+            continue;
+
+        const uint32_t bin = static_cast<uint32_t>(std::floor((dq[i] - limitMin) / binSize));
+
+        if (bin >= numberOfBins)
+            continue;
+
+        hist[bin] += dqW[i];
     }
 }
 
@@ -231,6 +257,33 @@ int main(void)
     std::vector<aidrive::Vector2f> searchLines{};
     std::vector<aidrive::Vector3f> dStarPath{};
     std::vector<aidrive::Vector3f> aStarPath{};
+
+    // Estimator
+    float32_t limitMin = -1.0f;
+    float32_t limitMax = 1.0f;
+    uint32_t numberOfBins = 100u;
+    uint32_t sizeHistogram = 10000u;
+    float32_t binSize       = (limitMax - limitMin) / float32_t(numberOfBins);
+
+    std::unique_ptr<RollingHistogram<float32_t>> rollingHistogram;
+    rollingHistogram.reset(new RollingHistogram<float32_t>({limitMin, limitMax}, numberOfBins, sizeHistogram));
+
+    std::vector<float> samples{};
+    std::default_random_engine generator;
+    std::normal_distribution<float32_t> normDistribution(0.f, 0.3f);
+    std::uniform_real_distribution<float32_t> uniformDistribution(-1.0f, 1.0f);
+
+    // resulting real histogram to render
+    std::vector<float32_t> histogramSimulator(numberOfBins, 0);
+    std::deque<float32_t> dq;
+    std::deque<float32_t> dqW;
+
+    // slider variable
+    int newNumSamples{10};
+
+    // 
+    HoloHistogram::Parameters histParam("", binSize, std::pair<float32_t, float32_t>(limitMin, limitMax), 100.f, false);
+    HoloHistogram holoHistogram(histParam);
 
     while (!glfwWindowShouldClose(window))
     {
@@ -889,6 +942,69 @@ int main(void)
                         // ImGui::PlotLines("v", &vAsFunctionOfD[0], vAsFunctionOfD.size(), 0, nullptr, 0.0f, 30.0f, GRAPH_SIZE);
                         ImGui::EndTabItem();
                     }
+                    if (ImGui::BeginTabItem("Robust estimator"))
+                    {
+                        const ImVec2 GRAPH_SIZE{600, 400};
+                        ImGui::PushItemWidth(100.f);
+                        ImGui::SliderInt("add # sample", &newNumSamples, 0, 1000);
+
+                        auto addSample = [&dq, &dqW, &rollingHistogram, &holoHistogram, sizeHistogram](float32_t sample) 
+                        {
+                            // print the random samples if you want
+                            // std::cout << "sample " << sample << std::endl;
+                            if (dq.size() == sizeHistogram)
+                            {
+                                dq.pop_front();
+                                dqW.pop_front();
+                            }
+
+                            dq.push_back(sample);
+                            dqW.push_back(1.0f);
+                            if (rollingHistogram->insert(sample, 1.0f)) // uniform weight 1.0
+                            {
+                                // do nothing
+                            }
+                            holoHistogram.Run(sample);
+                        };
+
+                        if(ImGui::Button("draw from normal dist"))
+                        {
+                            for (size_t counter = 0u; counter < newNumSamples; ++counter)
+                            {
+                                float32_t sample = normDistribution(generator);
+                                addSample(sample);
+                            }
+                            histogramSimulator = std::vector<float32_t>(numberOfBins, 0);
+                            fromDequeToVector(dq, dqW, histogramSimulator, binSize, numberOfBins, limitMin);
+                        }
+
+                        if(ImGui::Button("draw from uniform dist"))
+                        {
+                            for (size_t counter = 0u; counter < newNumSamples; ++counter)
+                            {
+                                float32_t sample = uniformDistribution(generator);
+                                addSample(sample);
+                            }
+                            histogramSimulator = std::vector<float32_t>(numberOfBins, 0);
+                            fromDequeToVector(dq, dqW, histogramSimulator, binSize, numberOfBins, limitMin);
+                        }
+
+                        ImGui::PopItemWidth();
+                        // histogram statistics
+                        ImGui::Text("rolling mode: %lu", rollingHistogram->modeIdx());
+                        ImGui::Text("rolling mean: %.2f", rollingHistogram->mean());
+                        ImGui::Text("rolling kurtosis: %.2f", rollingHistogram->computeKurtosis());
+                        ImGui::Text("holo kurtosis: %.2f", holoHistogram.computeKurtosis());
+                        ImGui::PlotHistogram("Histogram", 
+                                             histogramSimulator.data(), 
+                                             histogramSimulator.size(),
+                                             0, 
+                                             NULL,
+                                             0, 
+                                             rollingHistogram->modeCount() + 50, // so the histogram fills the plot
+                                             GRAPH_SIZE);
+                    }
+
                     ImGui::EndTabBar();
                 } // BeginTabBar
             }

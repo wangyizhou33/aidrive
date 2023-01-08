@@ -28,6 +28,9 @@ set(HEADERS
     control/Control.hpp
 
     planner/SpeedOpt.hpp
+
+    estimator/histogram.hpp
+    estimator/holo_histogram.hpp
 )
 
 set(SOURCES
@@ -40,6 +43,9 @@ set(SOURCES
     control/Control.cpp
 
     planner/SpeedOpt.cpp
+
+    estimator/histogram.cpp
+    estimator/holo_histogram.cpp
 )
 
 include_directories(${CERES_INCLUDE_DIRS})

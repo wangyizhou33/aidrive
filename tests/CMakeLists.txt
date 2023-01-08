@@ -9,6 +9,7 @@ add_executable(Test
     TestGmock.cpp
     TestCereal.cpp
     TestDemo.cpp
+    TestHistogram.cpp
     main.cpp
 )
 

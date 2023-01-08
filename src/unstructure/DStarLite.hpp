@@ -9,12 +9,7 @@
 #include <unordered_map> // std::unordered_map
 
 #include "CollisionGrid.hpp"
-
-template <typename FloatT>
-constexpr bool isFloatEqual(FloatT const a, FloatT b, FloatT const tolerance = std::numeric_limits<FloatT>::epsilon()) noexcept
-{
-    return std::abs(a - b) <= tolerance;
-}
+#include <aidrive/Utils.hpp>
 
 class DNode
 {
