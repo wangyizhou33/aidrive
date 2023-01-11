@@ -327,6 +327,14 @@ public:
         return kurtosis - 3.0;
     }
 
+    TValue computeModeCountRatio() const
+    {
+        TCount total = std::accumulate(m_bins.begin(), m_bins.end(), static_cast<TCount>(0));
+
+        return modeCount() / total;
+    }
+
+
 private:
     std::array<TValue, 2> m_limits;
 

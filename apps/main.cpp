@@ -270,8 +270,10 @@ int main(void)
 
     std::vector<float> samples{};
     std::default_random_engine generator;
-    std::normal_distribution<float32_t> normDistribution(0.f, 0.3f);
-    std::uniform_real_distribution<float32_t> uniformDistribution(-1.0f, 1.0f);
+    float32_t guassianMean = 0.f;
+    float32_t guassianStd = 0.3f;
+    float32_t uniformMin = -1.0f;
+    float32_t uniformMax = 1.0f;
 
     // resulting real histogram to render
     std::vector<float32_t> histogramSimulator(numberOfBins, 0);
@@ -944,8 +946,20 @@ int main(void)
                     }
                     if (ImGui::BeginTabItem("Robust estimator"))
                     {
+
+
                         const ImVec2 GRAPH_SIZE{600, 400};
                         ImGui::PushItemWidth(100.f);
+
+                        ImGui::SliderFloat("guassian mean", &guassianMean, -0.5, 0.5);
+                        ImGui::SliderFloat("guassian std", &guassianStd, 0.0, 0.3);
+                        ImGui::SliderFloat("uniform min", &uniformMin, -1.0, 1.0);
+                        ImGui::SliderFloat("uniform max", &uniformMax, -1.0, 1.0);
+
+
+                        std::normal_distribution<float32_t> normDistribution(guassianMean, guassianStd);
+                        std::uniform_real_distribution<float32_t> uniformDistribution(uniformMin, uniformMax);
+
                         ImGui::SliderInt("add # sample", &newNumSamples, 0, 1000);
 
                         auto addSample = [&dq, &dqW, &rollingHistogram, &holoHistogram, sizeHistogram](float32_t sample) 
@@ -994,6 +1008,7 @@ int main(void)
                         ImGui::Text("rolling mode: %lu", rollingHistogram->modeIdx());
                         ImGui::Text("rolling mean: %.2f", rollingHistogram->mean());
                         ImGui::Text("rolling kurtosis: %.2f", rollingHistogram->computeKurtosis());
+                        ImGui::Text("rolling modeCountRatio: %.3f", rollingHistogram->computeModeCountRatio());
                         ImGui::Text("holo kurtosis: %.2f", holoHistogram.computeKurtosis());
                         ImGui::PlotHistogram("Histogram", 
                                              histogramSimulator.data(), 
