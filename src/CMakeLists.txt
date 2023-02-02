@@ -69,3 +69,4 @@ target_link_libraries(modules
 
 add_subdirectory(newton)
 add_subdirectory(unstructure)
+add_subdirectory(statemachine)
