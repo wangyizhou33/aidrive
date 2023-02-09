@@ -31,6 +31,8 @@ set(HEADERS
 
     estimator/histogram.hpp
     estimator/holo_histogram.hpp
+
+    distance_following/DistanceFollowing.hpp
 )
 
 set(SOURCES
@@ -46,6 +48,8 @@ set(SOURCES
 
     estimator/histogram.cpp
     estimator/holo_histogram.cpp
+
+    distance_following/DistanceFollowing.cpp
 )
 
 include_directories(${CERES_INCLUDE_DIRS})

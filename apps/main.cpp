@@ -29,6 +29,7 @@
 #include <unstructure/HybridAStar.hpp>
 #include <estimator/histogram.hpp>
 #include <estimator/holo_histogram.hpp>
+#include <distance_following/DistanceFollowing.hpp>
 
 
 static void error_callback(int error, const char* description)
@@ -286,6 +287,17 @@ int main(void)
     // 
     HoloHistogram::Parameters histParam("", binSize, std::pair<float32_t, float32_t>(limitMin, limitMax), 100.f, false);
     HoloHistogram holoHistogram(histParam);
+
+    // lon sim
+    aidrive::ODEModel<float32_t> lonModel{};
+    float32_t& paramA = lonModel.getParamA();
+    float32_t& paramB = lonModel.getParamB();
+    float32_t& paramHeadway = lonModel.getParamHeadway();
+    float32_t& paramDelta = lonModel.getParamDelta();
+
+    float32_t initEgoV{0.0};
+    float32_t initObsV{0.0};
+    float32_t initObsS{50.0};
 
     while (!glfwWindowShouldClose(window))
     {
@@ -1018,6 +1030,69 @@ int main(void)
                                              0, 
                                              rollingHistogram->modeCount() + 50, // so the histogram fills the plot
                                              GRAPH_SIZE);
+                        ImGui::EndTabItem();
+                    }
+
+                    if (ImGui::BeginTabItem("lon sim"))
+                    {
+                        ImGui::PushItemWidth(100.f);
+
+                        ImGui::SliderFloat("a", &paramA, 0.01, 1.0);
+                        ImGui::SliderFloat("b", &paramB, 0.01, 3.0);
+                        ImGui::SliderFloat("headway", &paramHeadway, 0.8, 2.0);
+                        ImGui::SliderFloat("delta", &paramDelta, 0.0, 4.0);
+
+                        ImGui::SliderFloat("initEgoV", &initEgoV, 0.0, 5.0);
+                        ImGui::SliderFloat("initObsV", &initObsV, 0.0, 10.0);
+                        ImGui::SliderFloat("initObsS", &initObsS, 0.0, 80.0);
+
+                        ImGui::PopItemWidth();
+
+                        std::vector<float32_t> egoS{};
+                        std::vector<float32_t> egoV{};
+                        std::vector<float32_t> obsS{};
+                        std::vector<float32_t> obsV{};
+                        std::vector<float32_t> deltaS{};
+                        std::vector<float32_t> deltaV{};
+
+                        std::vector<float32_t> state{};
+                        state.resize(4);
+                        state[0] = 0.f;
+                        state[1] = initEgoV;
+                        state[2] = initObsS;
+                        state[3] = initObsV;
+
+
+                        float32_t deltaT = 0.1f;
+                        float32_t finalT = 30.0f;
+
+                        for (float32_t t = 0.0f; t < finalT; t += deltaT)
+                        {
+                            boost::numeric::odeint::integrate(lonModel,
+                                                              state,
+                                                              t,
+                                                              t + deltaT,
+                                                              std::min(0.1f, deltaT));
+
+                            egoS.push_back(state[0]);
+                            egoV.push_back(state[1]);
+                            obsS.push_back(state[2]);
+                            obsV.push_back(state[3]);
+                            deltaS.push_back(state[2] - state[0]);
+                            deltaV.push_back(state[3] - state[1]);
+                        }
+
+
+                        const ImVec2 GRAPH_SIZE{800, 80};
+
+                        ImGui::PlotLines("ego d", &egoS[0], egoS.size(), 0, nullptr, 0.0f, 200.0f, GRAPH_SIZE);
+                        ImGui::PlotLines("ego v", &egoV[0], egoV.size(), 0, nullptr, 0.0f, 20.0f, GRAPH_SIZE);
+                        ImGui::PlotLines("obs d", &obsS[0], obsS.size(), 0, nullptr, 0.0f, 200.0f, GRAPH_SIZE);
+                        ImGui::PlotLines("obs v", &obsV[0], obsV.size(), 0, nullptr, 0.0f, 20.0f, GRAPH_SIZE);
+                        ImGui::PlotLines("ds = obs - ego", &deltaS[0], deltaS.size(), 0, nullptr, 0.0f, 20.0f, GRAPH_SIZE);
+                        ImGui::PlotLines("dv = obs - ego", &deltaV[0], deltaV.size(), 0, nullptr, -20.0f, 20.0f, GRAPH_SIZE);
+
+                        ImGui::EndTabItem();
                     }
 
                     ImGui::EndTabBar();
