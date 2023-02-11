@@ -28,10 +28,37 @@ public:
         m_plant(x, dxdt, a);
     }
 
-    T& getParamA() {return m_idm.a;};
-    T& getParamB() {return m_idm.b;};
-    T& getParamHeadway() {return m_idm.headway;};
-    T& getParamDelta() {return m_idm.delta;};
+    T& getParamA() { return m_idm.a; };
+    T& getParamB() { return m_idm.b; };
+    T& getParamHeadway() { return m_idm.headway; };
+    T& getParamDelta() { return m_idm.delta; };
+    T& getParamV0() { return m_idm.v0; };
+
+    std::vector<T> getEq() const
+    {
+        std::vector<T> ret{};
+
+        for (T v = 0.f; v < 35.f; v += 1.f)
+        {
+            T se = (m_idm.s0 + m_idm.headway * v) / std::sqrt(1.f - std::pow(v / m_idm.v0, m_idm.delta));
+
+            ret.push_back(se);
+        }
+        return ret;
+    }
+
+    std::vector<T> getDesire() const
+    {
+        std::vector<T> ret{};
+
+        for (T v = 0.f; v < 35.f; v += 1.f)
+        {
+            T se = (m_idm.s0 + m_idm.headway * v);
+
+            ret.push_back(se);
+        }
+        return ret;
+    }
 
 private:
     class Plant
@@ -64,7 +91,7 @@ private:
             T deltaV = -obsV + egoV;
             T deltaS = -obsS + egoS;
             T sStar  = s0 + std::max(0.0, egoV * headway + egoV * deltaV / 2.0 / std::sqrt(a * b));
-            T accel = a * (1.0 - std::pow((egoV / v0), delta) - std::pow(sStar / deltaS, 2.0));
+            T accel  = a * (1.0 - std::pow((egoV / v0), delta) - std::pow(sStar / deltaS, 2.0));
             return (egoV >= 0.0) ? accel : 0.0;
         }
 

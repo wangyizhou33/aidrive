@@ -294,6 +294,7 @@ int main(void)
     float32_t& paramB = lonModel.getParamB();
     float32_t& paramHeadway = lonModel.getParamHeadway();
     float32_t& paramDelta = lonModel.getParamDelta();
+    float32_t& paramV0 = lonModel.getParamV0();
 
     float32_t initEgoV{0.0};
     float32_t initObsV{0.0};
@@ -1041,6 +1042,7 @@ int main(void)
                         ImGui::SliderFloat("b", &paramB, 0.01, 3.0);
                         ImGui::SliderFloat("headway", &paramHeadway, 0.8, 2.0);
                         ImGui::SliderFloat("delta", &paramDelta, 0.0, 4.0);
+                        ImGui::SliderFloat("v0", &paramV0, 20.0f, 50.0);
 
                         ImGui::SliderFloat("initEgoV", &initEgoV, 0.0, 5.0);
                         ImGui::SliderFloat("initObsV", &initObsV, 0.0, 10.0);
@@ -1082,6 +1084,9 @@ int main(void)
                             deltaV.push_back(state[3] - state[1]);
                         }
 
+                        // theoretical curve
+                        auto curve = lonModel.getEq();
+                        auto desire = lonModel.getDesire();
 
                         const ImVec2 GRAPH_SIZE{800, 80};
 
@@ -1089,8 +1094,10 @@ int main(void)
                         ImGui::PlotLines("ego v", &egoV[0], egoV.size(), 0, nullptr, 0.0f, 20.0f, GRAPH_SIZE);
                         ImGui::PlotLines("obs d", &obsS[0], obsS.size(), 0, nullptr, 0.0f, 200.0f, GRAPH_SIZE);
                         ImGui::PlotLines("obs v", &obsV[0], obsV.size(), 0, nullptr, 0.0f, 20.0f, GRAPH_SIZE);
-                        ImGui::PlotLines("ds = obs - ego", &deltaS[0], deltaS.size(), 0, nullptr, 0.0f, 20.0f, GRAPH_SIZE);
-                        ImGui::PlotLines("dv = obs - ego", &deltaV[0], deltaV.size(), 0, nullptr, -20.0f, 20.0f, GRAPH_SIZE);
+                        // ImGui::PlotLines("ds = obs - ego", &deltaS[0], deltaS.size(), 0, nullptr, 0.0f, 20.0f, GRAPH_SIZE);
+                        // ImGui::PlotLines("dv = obs - ego", &deltaV[0], deltaV.size(), 0, nullptr, -20.0f, 20.0f, GRAPH_SIZE);
+                        ImGui::PlotLines("eq", &curve[0], curve.size(), 0, nullptr, 0.0f, 200.0f, GRAPH_SIZE);
+                        ImGui::PlotLines("desire", &desire[0], desire.size(), 0, nullptr, 0.0f, 200.0f, GRAPH_SIZE);
 
                         ImGui::EndTabItem();
                     }
