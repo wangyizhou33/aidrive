@@ -15,21 +15,26 @@ public:
     SpeedOpt();
 
     // this interface works directly with imgui::CheckBox
-    bool& getCurveSpeedToggle() { return m_curveSpeedOn;};
+    bool& getCurveSpeedToggle() { return m_curveSpeedOn; };
 
     void optimize(float32_t vInit,
                   float32_t aInit,
                   float32_t xc,
                   float32_t vc);
 
+    std::vector<float32_t> getT() const;
     std::vector<float32_t> getD() const;
     std::vector<float32_t> getV() const;
     std::vector<float32_t> getA() const;
     std::vector<float32_t> getJ() const;
+    std::vector<float32_t> getObsD() const;
+    std::vector<float32_t> getObsV() const;
 
     // {s1, v1}, {s2, v2} ...
     std::vector<float32_t> getSpeedLimit() const;
     std::vector<float32_t> getVAsFunctionOfD() const;
+
+    float32_t& getRho() { return m_rho; };
 
 private:
     static constexpr size_t OPT_STEPS = 50;
@@ -40,6 +45,10 @@ private:
     float64_t m_j[OPT_STEPS]{};
 
     bool m_curveSpeedOn{false};
+
+    float32_t m_xc{};
+    float32_t m_vc{};
+    float32_t m_rho{0.1};
 
 }; // class SpeedOpt
 

@@ -30,6 +30,7 @@ find_package(GLEW REQUIRED) # apt-get install libglfw-dev
 
 # imgui
 add_subdirectory("3rdparty/imgui/")
+add_subdirectory("3rdparty/implot/")
 
 # protobuf
 # TODO include protobuf as 3rdparty

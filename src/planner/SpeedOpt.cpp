@@ -16,8 +16,8 @@ using ceres::Solve;
 using ceres::Solver;
 using ceres::TrivialLoss;
 
-#define SMOOTH_BARRIER_FUNCTION_MAX 1e5
-#define ACTOR_AVOIDANCE_MAX 1e5
+#define SMOOTH_BARRIER_FUNCTION_MAX 1e10
+#define ACTOR_AVOIDANCE_MAX 1e10
 
 template <class T>
 inline int smoothBarrierFunction(T& h, T x, T k_h = ((T)1.0), T x_onset = ((T)0.0), T x_max = ((T)1.0),
@@ -93,10 +93,11 @@ inline int actorAvoidanceCostCore(T& b, T x, T v, T xc, T vc, const ActorAvoidan
 class DavidCost
 {
 public:
-    DavidCost(int _i, float32_t _xc, float32_t _vc)
+    DavidCost(int _i, float32_t _xc, float32_t _vc, float32_t _rho)
         : i(_i)
         , xc(_xc)
-        , vc(_vc){};
+        , vc(_vc)
+        , rho(_rho){};
 
     template <typename T>
     bool operator()(const T* const x,
@@ -114,7 +115,7 @@ public:
 
         T actorAvoidanceCost = T(1.0) * T(i) * T(rho) * barrier;
 
-        residual[0] = T(10) * exp(progress + actorAvoidanceCost);
+        residual[0] = T(100) * exp(progress + actorAvoidanceCost);
 
         return true;
     }
@@ -122,11 +123,11 @@ public:
 private:
     int32_t i;
 
-    float32_t kp  = 0.05f;
-    float32_t rho = 0.01f;
+    float32_t kp  = 0.5f;
+    float32_t rho{};
 
-    float32_t xc = 30.f;
-    float32_t vc = 0.0f;
+    float32_t xc{};
+    float32_t vc{};
 
     ActorAvoidanceCostParametersCore P{};
 
@@ -273,6 +274,8 @@ void SpeedOpt::optimize(float32_t vInit,
     // }
 
     // std::cout << "test barrier  ============" << std::endl;
+    m_xc = xc;
+    m_vc = vc;
 
     float32_t beta{};
     ActorAvoidanceCostParametersCore P{};
@@ -347,7 +350,7 @@ void SpeedOpt::optimize(float32_t vInit,
 
         CostFunction* cost1 =
             new AutoDiffCostFunction<DavidCost, 1, 1, 1>(
-                new DavidCost(tIdx, xc, vc));
+                new DavidCost(tIdx, std::max(0.f, xc + vc * tIdx), vc, m_rho));
 
         problem.AddResidualBlock(cost1, NULL, &d[tIdx], &v[tIdx]);
 
@@ -406,6 +409,11 @@ void SpeedOpt::optimize(float32_t vInit,
                     new InequalityResidual(-ALIM, InequalityResidual::GREATER));
 
             problem.AddResidualBlock(cost9, loss8, &a[tIdx - 1]);
+
+            CostFunction* cost10 =
+                new AutoDiffCostFunction<InequalityResidual, 1, 1>(
+                    new InequalityResidual(0.0, InequalityResidual::GREATER));
+            problem.AddResidualBlock(cost10, loss8, &v[tIdx - 1]);
         }
 
         // progress constraint
@@ -431,6 +439,17 @@ void SpeedOpt::optimize(float32_t vInit,
     std::copy(&v[0], &v[OPT_STEPS], &m_v[0]);
     std::copy(&a[0], &a[OPT_STEPS], &m_a[0]);
     std::copy(&j[0], &j[OPT_STEPS], &m_j[0]);
+}
+
+std::vector<float32_t> SpeedOpt::getT() const
+{
+    std::vector<float32_t> result{};
+    result.resize(OPT_STEPS);
+    for (size_t i = 0; i < OPT_STEPS; ++i)
+    {
+        result[i] = i * DT;
+    }
+    return result;
 }
 
 std::vector<float32_t> SpeedOpt::getD() const
@@ -468,7 +487,6 @@ std::vector<float32_t> SpeedOpt::getJ() const
 std::vector<float32_t> SpeedOpt::getSpeedLimit() const
 {
     std::vector<float32_t> ret{};
-
     for (size_t i = 0; i < 50; ++i)
     {
         float32_t s = 1.0 * i; // every 1 meter
@@ -500,6 +518,30 @@ std::vector<float32_t> SpeedOpt::getVAsFunctionOfD() const
             }
         }
     }
+    return ret;
+}
+
+std::vector<float32_t> SpeedOpt::getObsD() const
+{
+    std::vector<float32_t> ret{};
+
+    for (size_t i = 0; i < OPT_STEPS; ++i)
+    {
+        ret.push_back(std::max(0.f, m_xc + m_vc * static_cast<float32_t>(i)));
+    }
+
+    return ret;
+}
+
+std::vector<float32_t> SpeedOpt::getObsV() const
+{
+    std::vector<float32_t> ret{};
+
+    for (size_t i = 0; i < OPT_STEPS; ++i)
+    {
+        ret.push_back(m_vc);
+    }
+
     return ret;
 }
 

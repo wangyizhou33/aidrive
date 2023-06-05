@@ -13,6 +13,7 @@ target_include_directories(main PUBLIC
 target_link_libraries(main 
     glfw
     ImGui
+    ImPlot
     GLEW::GLEW
     OpenGL::GL
     modules

@@ -13,3 +13,6 @@
 [submodule "3rdparty/cereal/cereal"]
 	path = 3rdparty/cereal/cereal
 	url = https://github.com/USCiLab/cereal.git
+[submodule "3rdparty/implot/implot"]
+	path = 3rdparty/implot/implot
+	url = https://github.com/epezent/implot.git

@@ -17,6 +17,7 @@
 #include <imgui.h>
 #include "imgui_impl_opengl3.h"
 #include "imgui_impl_glfw.h"
+#include <implot.h>
 
 // aidrive module headers
 #include <render/Render.hpp>
@@ -925,6 +926,8 @@ int main(void)
                         ImGui::SameLine();
                         ImGui::SliderFloat("obj vx", &objV[0], 0.f, 10.0f, "%.1f");
                         ImGui::SameLine();
+                        ImGui::SliderFloat("rho", &speedOpt.getRho(), 0.01f, 0.5f, "%.2f");
+                        ImGui::SameLine();
                         ImGui::PopItemWidth();
 
                         ImGui::Checkbox("enable curve speed term", &speedOpt.getCurveSpeedToggle());
@@ -938,20 +941,48 @@ int main(void)
 
                         const ImVec2 GRAPH_SIZE{600, 120};
 
+                        auto t = speedOpt.getT();
                         auto d = speedOpt.getD();
-                        ImGui::PlotLines("d", &d[0], d.size(), 0, nullptr, 0.0f, 50.0f, GRAPH_SIZE);
-
                         auto v = speedOpt.getV();
-                        ImGui::PlotLines("v", &v[0], v.size(), 0, nullptr, 0.0f, 10.0f, GRAPH_SIZE);
-
                         auto a = speedOpt.getA();
-                        ImGui::PlotLines("a", &a[0], a.size(), 0, nullptr, -3.0f, 3.0f, GRAPH_SIZE);
-
-                        // auto j = speedOpt.getJ();
-                        // ImGui::PlotLines("j", &j[0], j.size(), 0, nullptr, -10.0f, 10.0f, GRAPH_SIZE);
-
+                        auto od =  speedOpt.getObsD();
+                        auto ov =  speedOpt.getObsV();
                         auto speedLimit = speedOpt.getSpeedLimit();
-                        ImGui::PlotLines("v limit", &speedLimit[0], speedLimit.size(), 0, nullptr, 0.0f, 30.0f, GRAPH_SIZE);
+
+                        static float xs1[1001], ys1[1001];
+                        for (int i = 0; i < 1001; ++i) {
+                            xs1[i] = i * 0.001f;
+                            ys1[i] = 0.5f + 0.5f * sin(50 * xs1[i]);
+                        }
+                        ImGui::BeginPlot("d", "", "", {-1,200});
+                        ImGui::PushPlotColor(ImPlotCol_Line,
+                                             ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_BLUE));
+                        ImGui::Plot("ego d", t.data(), d.data(), t.size());
+                        ImGui::PopPlotColor();
+                        ImGui::PushPlotColor(ImPlotCol_Line,
+                                             ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_RED));
+                        ImGui::Plot("obs d", t.data(), od.data(), t.size());
+                        ImGui::PopPlotColor();
+                        ImGui::EndPlot();
+
+                        ImGui::BeginPlot("v", "", "", {-1,200});
+                        ImGui::PushPlotColor(ImPlotCol_Line,
+                                             ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_BLUE));
+                        ImGui::Plot("ego v", t.data(), v.data(), t.size());
+                        ImGui::PopPlotColor();
+                        ImGui::PushPlotColor(ImPlotCol_Line,
+                                             ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_RED));
+                        ImGui::Plot("obs v", t.data(), ov.data(), t.size());
+                        ImGui::PopPlotColor();
+                        ImGui::EndPlot();
+
+                        ImGui::BeginPlot("a", "", "", {-1,200});
+                        ImGui::Plot("a", t.data(), a.data(), t.size());
+                        ImGui::EndPlot();
+
+                        // ImGui::BeginPlot("speed limit", "", "", {-1,300});
+                        // ImGui::Plot("speedlimit", t.data(), speedLimit.data(), t.size());
+                        // ImGui::EndPlot();
 
                         // auto vAsFunctionOfD = speedOpt.getVAsFunctionOfD();
                         // ImGui::PlotLines("v", &vAsFunctionOfD[0], vAsFunctionOfD.size(), 0, nullptr, 0.0f, 30.0f, GRAPH_SIZE);
