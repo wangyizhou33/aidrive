@@ -32,7 +32,6 @@
 #include <estimator/holo_histogram.hpp>
 #include <distance_following/DistanceFollowing.hpp>
 
-
 static void error_callback(int error, const char* description)
 {
     fprintf(stderr, "Error: %s\n", description);
@@ -87,8 +86,8 @@ void prepareContenderData(float64_t** XC, const aidrive::Vector3f p, const aidri
     }
 }
 
-void fromDequeToVector(const std::deque<float32_t>& dq, 
-                       const std::deque<float32_t>& dqW, 
+void fromDequeToVector(const std::deque<float32_t>& dq,
+                       const std::deque<float32_t>& dqW,
                        std::vector<float32_t>& hist,
                        float32_t binSize,
                        uint32_t numberOfBins,
@@ -110,7 +109,7 @@ void fromDequeToVector(const std::deque<float32_t>& dq,
 }
 
 constexpr uint32_t WINDOW_WIDTH  = 1280u;
-constexpr uint32_t WINDOW_HEIGHT = 720u;
+constexpr uint32_t WINDOW_HEIGHT = 1080u;
 
 int main(void)
 {
@@ -145,8 +144,8 @@ int main(void)
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     (void)io;
-    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+    // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    // io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
     // Setup Dear ImGui style
     ImGui::StyleColorsLight(); // Dark, Classic
@@ -253,7 +252,7 @@ int main(void)
                aStarParams.cellSize, 1, angleTolerance,
                aStarParams.distWeight, aStarParams.dirSwitchCost,
                aStarParams.backwardsMultiplier, true, // true means using dstar heuristic, which speeds up the search hopefully. Right now it must be on
-               aStarParams.maxNumCollisionCells, aStarParams.maxPathLength);    
+               aStarParams.maxNumCollisionCells, aStarParams.maxPathLength);
 
     // astar rendering
     std::vector<aidrive::Vector2f> searchLines{};
@@ -261,11 +260,11 @@ int main(void)
     std::vector<aidrive::Vector3f> aStarPath{};
 
     // Estimator
-    float32_t limitMin = -1.0f;
-    float32_t limitMax = 1.0f;
-    uint32_t numberOfBins = 100u;
+    float32_t limitMin     = -1.0f;
+    float32_t limitMax     = 1.0f;
+    uint32_t numberOfBins  = 100u;
     uint32_t sizeHistogram = 10000u;
-    float32_t binSize       = (limitMax - limitMin) / float32_t(numberOfBins);
+    float32_t binSize      = (limitMax - limitMin) / float32_t(numberOfBins);
 
     std::unique_ptr<RollingHistogram<float32_t>> rollingHistogram;
     rollingHistogram.reset(new RollingHistogram<float32_t>({limitMin, limitMax}, numberOfBins, sizeHistogram));
@@ -273,9 +272,9 @@ int main(void)
     std::vector<float> samples{};
     std::default_random_engine generator;
     float32_t guassianMean = 0.f;
-    float32_t guassianStd = 0.3f;
-    float32_t uniformMin = -1.0f;
-    float32_t uniformMax = 1.0f;
+    float32_t guassianStd  = 0.3f;
+    float32_t uniformMin   = -1.0f;
+    float32_t uniformMax   = 1.0f;
 
     // resulting real histogram to render
     std::vector<float32_t> histogramSimulator(numberOfBins, 0);
@@ -285,17 +284,17 @@ int main(void)
     // slider variable
     int newNumSamples{10};
 
-    // 
+    //
     HoloHistogram::Parameters histParam("", binSize, std::pair<float32_t, float32_t>(limitMin, limitMax), 100.f, false);
     HoloHistogram holoHistogram(histParam);
 
     // lon sim
     aidrive::ODEModel<float32_t> lonModel{};
-    float32_t& paramA = lonModel.getParamA();
-    float32_t& paramB = lonModel.getParamB();
+    float32_t& paramA       = lonModel.getParamA();
+    float32_t& paramB       = lonModel.getParamB();
     float32_t& paramHeadway = lonModel.getParamHeadway();
-    float32_t& paramDelta = lonModel.getParamDelta();
-    float32_t& paramV0 = lonModel.getParamV0();
+    float32_t& paramDelta   = lonModel.getParamDelta();
+    float32_t& paramV0      = lonModel.getParamV0();
 
     float32_t initEgoV{0.0};
     float32_t initObsV{0.0};
@@ -457,7 +456,6 @@ int main(void)
                             uint32_t pathPointCount = 0;
                             float64_t pathLength    = std::numeric_limits<float64_t>::max();
 
-
                             RSPoint startState;
                             startState.x           = pose[0];
                             startState.y           = pose[1];
@@ -470,7 +468,7 @@ int main(void)
                             targetState.y           = objP[1];
                             targetState.orientation = objP[2];
                             targetState.direction   = static_cast<RSDirection>(DrivingState::STANDING);
-                            reedsShepp.evaluateRS(&RSPath[0], 
+                            reedsShepp.evaluateRS(&RSPath[0],
                                                   &pathPointCount,
                                                   &pathLength,
                                                   startState,
@@ -916,7 +914,7 @@ int main(void)
                     }
                     if (ImGui::BeginTabItem("speed optimization"))
                     {
-                        ImGui::PushItemWidth(100.f);
+                        ImGui::PushItemWidth(50.f);
 
                         ImGui::SliderFloat("vInit", &vInit, 0.0f, 10.0f, "%.2f");
                         ImGui::SameLine();
@@ -927,7 +925,21 @@ int main(void)
                         ImGui::SliderFloat("obj vx", &objV[0], 0.f, 10.0f, "%.1f");
                         ImGui::SameLine();
                         ImGui::SliderFloat("rho", &speedOpt.getRho(), 0.01f, 0.5f, "%.2f");
+
+                        ImGui::SliderFloat("eq", &speedOpt.getEqualityWeight(), 0.0f, 500000.0f, "%f");
                         ImGui::SameLine();
+                        ImGui::SliderFloat("ineq", &speedOpt.getInequalityWeight(), 0.0f, 500000.0f, "%f");
+                        ImGui::SameLine();
+                        ImGui::SliderFloat("jerk", &speedOpt.getJerkWeight(), 0.0f, 2000.0f, "%.1f");
+                        ImGui::SameLine();
+                        ImGui::SliderFloat("accel", &speedOpt.getAccelWeight(), 0.0f, 2000.0f, "%.1f");
+                        ImGui::SameLine();
+                        ImGui::SliderFloat("vel", &speedOpt.getVelWeight(), 0.0f, 2000.0f, "%.1f");
+                        ImGui::SameLine();
+                        ImGui::SliderFloat("obs", &speedOpt.getObsWeight(), 0.0f, 20000.0f, "%.1f");
+                        ImGui::SameLine();
+                        ImGui::SliderInt("cut in ", &speedOpt.getCutInTime(), 0, 80.0f, "%d");
+
                         ImGui::PopItemWidth();
 
                         ImGui::Checkbox("enable curve speed term", &speedOpt.getCurveSpeedToggle());
@@ -941,20 +953,24 @@ int main(void)
 
                         const ImVec2 GRAPH_SIZE{600, 120};
 
-                        auto t = speedOpt.getT();
-                        auto d = speedOpt.getD();
-                        auto v = speedOpt.getV();
-                        auto a = speedOpt.getA();
-                        auto od =  speedOpt.getObsD();
-                        auto ov =  speedOpt.getObsV();
+                        auto t          = speedOpt.getT();
+                        auto d          = speedOpt.getD();
+                        auto v          = speedOpt.getV();
+                        auto a          = speedOpt.getA();
+                        auto j          = speedOpt.getJ();
+                        auto od         = speedOpt.getObsD();
+                        auto ov         = speedOpt.getObsV();
                         auto speedLimit = speedOpt.getSpeedLimit();
 
+                        ImGui::Text("boundary: d: %f vs %f, v: %f vs %f, a: %f vs %f", 0.0f, d[0], vInit, v[0], aInit, a[0]);
+
                         static float xs1[1001], ys1[1001];
-                        for (int i = 0; i < 1001; ++i) {
+                        for (int i = 0; i < 1001; ++i)
+                        {
                             xs1[i] = i * 0.001f;
                             ys1[i] = 0.5f + 0.5f * sin(50 * xs1[i]);
                         }
-                        ImGui::BeginPlot("d", "", "", {-1,200});
+                        ImGui::BeginPlot("d", "", "", {-1, 250});
                         ImGui::PushPlotColor(ImPlotCol_Line,
                                              ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_BLUE));
                         ImGui::Plot("ego d", t.data(), d.data(), t.size());
@@ -965,7 +981,7 @@ int main(void)
                         ImGui::PopPlotColor();
                         ImGui::EndPlot();
 
-                        ImGui::BeginPlot("v", "", "", {-1,200});
+                        ImGui::BeginPlot("v", "", "", {-1, 250});
                         ImGui::PushPlotColor(ImPlotCol_Line,
                                              ImGui::ColorConvertU32ToFloat4(aidrive::render::COLOR_BLUE));
                         ImGui::Plot("ego v", t.data(), v.data(), t.size());
@@ -976,8 +992,10 @@ int main(void)
                         ImGui::PopPlotColor();
                         ImGui::EndPlot();
 
-                        ImGui::BeginPlot("a", "", "", {-1,200});
+                        ImGui::BeginPlot("a", "", "", {-1, 250});
                         ImGui::Plot("a", t.data(), a.data(), t.size());
+
+                        ImGui::Plot("j", t.data(), j.data(), t.size());
                         ImGui::EndPlot();
 
                         // ImGui::BeginPlot("speed limit", "", "", {-1,300});
@@ -991,7 +1009,6 @@ int main(void)
                     if (ImGui::BeginTabItem("Robust estimator"))
                     {
 
-
                         const ImVec2 GRAPH_SIZE{600, 400};
                         ImGui::PushItemWidth(100.f);
 
@@ -1000,14 +1017,12 @@ int main(void)
                         ImGui::SliderFloat("uniform min", &uniformMin, -1.0, 1.0);
                         ImGui::SliderFloat("uniform max", &uniformMax, -1.0, 1.0);
 
-
                         std::normal_distribution<float32_t> normDistribution(guassianMean, guassianStd);
                         std::uniform_real_distribution<float32_t> uniformDistribution(uniformMin, uniformMax);
 
                         ImGui::SliderInt("add # sample", &newNumSamples, 0, 1000);
 
-                        auto addSample = [&dq, &dqW, &rollingHistogram, &holoHistogram, sizeHistogram](float32_t sample) 
-                        {
+                        auto addSample = [&dq, &dqW, &rollingHistogram, &holoHistogram, sizeHistogram](float32_t sample) {
                             // print the random samples if you want
                             // std::cout << "sample " << sample << std::endl;
                             if (dq.size() == sizeHistogram)
@@ -1025,7 +1040,7 @@ int main(void)
                             holoHistogram.Run(sample);
                         };
 
-                        if(ImGui::Button("draw from normal dist"))
+                        if (ImGui::Button("draw from normal dist"))
                         {
                             for (size_t counter = 0u; counter < newNumSamples; ++counter)
                             {
@@ -1036,7 +1051,7 @@ int main(void)
                             fromDequeToVector(dq, dqW, histogramSimulator, binSize, numberOfBins, limitMin);
                         }
 
-                        if(ImGui::Button("draw from uniform dist"))
+                        if (ImGui::Button("draw from uniform dist"))
                         {
                             for (size_t counter = 0u; counter < newNumSamples; ++counter)
                             {
@@ -1054,12 +1069,12 @@ int main(void)
                         ImGui::Text("rolling kurtosis: %.2f", rollingHistogram->computeKurtosis());
                         ImGui::Text("rolling modeCountRatio: %.3f", rollingHistogram->computeModeCountRatio());
                         ImGui::Text("holo kurtosis: %.2f", holoHistogram.computeKurtosis());
-                        ImGui::PlotHistogram("Histogram", 
-                                             histogramSimulator.data(), 
+                        ImGui::PlotHistogram("Histogram",
+                                             histogramSimulator.data(),
                                              histogramSimulator.size(),
-                                             0, 
+                                             0,
                                              NULL,
-                                             0, 
+                                             0,
                                              rollingHistogram->modeCount() + 50, // so the histogram fills the plot
                                              GRAPH_SIZE);
                         ImGui::EndTabItem();
@@ -1095,7 +1110,6 @@ int main(void)
                         state[2] = initObsS;
                         state[3] = initObsV;
 
-
                         float32_t deltaT = 0.1f;
                         float32_t finalT = 30.0f;
 
@@ -1116,7 +1130,7 @@ int main(void)
                         }
 
                         // theoretical curve
-                        auto curve = lonModel.getEq();
+                        auto curve  = lonModel.getEq();
                         auto desire = lonModel.getDesire();
 
                         const ImVec2 GRAPH_SIZE{800, 80};

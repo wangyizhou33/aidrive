@@ -123,7 +123,7 @@ public:
 private:
     int32_t i;
 
-    float32_t kp  = 0.5f;
+    float32_t kp = 0.5f;
     float32_t rho{};
 
     float32_t xc{};
@@ -132,6 +132,46 @@ private:
     ActorAvoidanceCostParametersCore P{};
 
 }; // class DavidCost
+
+class IdmCost
+{
+public:
+    IdmCost(int _i, float32_t _xc, float32_t _vc)
+        : i(_i)
+        , xc(_xc)
+        , vc(_vc)
+    {
+    }
+
+    template <typename T>
+    bool operator()(const T* const x,
+                    const T* const v,
+                    T* residual) const
+    {
+        T sStar = calDesiredS<T>(v[0], T(vc));
+
+        residual[0] = std::min(T(xc) - x[0] - sStar, T(0.));
+        return true;
+    }
+
+private:
+    template <typename T>
+    T calDesiredS(T ve, T vo) const
+    {
+        T d = sqrt(T(a) * T(b));
+        return ve * T(timegap) + (ve - vo) / T(2.) / d;
+    }
+
+    int32_t i;
+
+    float32_t xc{};
+    float32_t vc{};
+
+    float32_t a{1.0f};
+    float32_t b{1.4f};
+    float32_t timegap{1.4f};
+
+}; // IdmCost
 
 ///
 class ProgressCost
@@ -280,7 +320,7 @@ void SpeedOpt::optimize(float32_t vInit,
     float32_t beta{};
     ActorAvoidanceCostParametersCore P{};
     actorAvoidanceCostCore<float32_t>(beta, 0, vInit, xc, vc, &P);
-    std::cout << xc << " " << vc << " " << beta << std::endl;
+    // std::cout << xc << " " << vc << " " << beta << std::endl;
 
     float64_t d[OPT_STEPS]{};
     float64_t v[OPT_STEPS]{};
@@ -294,80 +334,102 @@ void SpeedOpt::optimize(float32_t vInit,
 
     // set initial condition for v[0], a[0], j[0]
     // now zero-initialize them
+    constexpr float64_t ALIM = 2.5f;
 
     Problem problem;
+    constexpr float64_t DISCOUNT = 0.9;
 
-    constexpr float64_t DISCOUNT          = 0.9;
-    constexpr float64_t EQUALITY_WEIGHT   = 1000.0;
-    constexpr float64_t INEQUALITY_WEIGHT = 1000.0;
-    constexpr float64_t JERK_WEIGHT       = 1.0;
-    constexpr float64_t VEL_WEIGHT        = 1.5;
-
-    CostFunction* cost2 =
+    CostFunction* kinematicCost =
         new AutoDiffCostFunction<IntegralCost, 1, 1, 1, 1>(
             new IntegralCost(DT));
 
-    LossFunction* loss2 = new ScaledLoss(
+    LossFunction* equalityLoss = new ScaledLoss(
         new TrivialLoss(),
         EQUALITY_WEIGHT,
         ceres::TAKE_OWNERSHIP);
 
     // initial condition constraint
     {
-        CostFunction* cost4 =
+        CostFunction* dInitEquality =
             new AutoDiffCostFunction<TrivialResidual, 1, 1>(
                 new TrivialResidual(0.0));
 
-        problem.AddResidualBlock(cost4, loss2, &d[0]); // always start at d = 0
+        problem.AddResidualBlock(dInitEquality, equalityLoss, &d[0]); // always start at d = 0
 
-        CostFunction* cost6 =
+        CostFunction* vInitEquality =
             new AutoDiffCostFunction<TrivialResidual, 1, 1>(
                 new TrivialResidual(vInit));
 
-        problem.AddResidualBlock(cost6, loss2, &v[0]); // match vInit
+        problem.AddResidualBlock(vInitEquality, equalityLoss, &v[0]); // match vInit
 
-        CostFunction* cost7 =
+        CostFunction* aInitEquality =
             new AutoDiffCostFunction<TrivialResidual, 1, 1>(
                 new TrivialResidual(aInit));
 
-        problem.AddResidualBlock(cost7, loss2, &a[0]); // match aInit
-    }
+        problem.AddResidualBlock(aInitEquality, equalityLoss, &a[0]); // match aInit
 
-    constexpr float64_t ALIM = 1.5f;
+        CostFunction* jInitEquality =
+            new AutoDiffCostFunction<TrivialResidual, 1, 1>(
+                new TrivialResidual(0.0));
+
+        problem.AddResidualBlock(jInitEquality, equalityLoss, &j[0]); // match aInit
+    }
 
     LossFunction* loss8 = new ScaledLoss(
         new TrivialLoss(),
         INEQUALITY_WEIGHT,
         ceres::TAKE_OWNERSHIP);
 
-    for (int32_t tIdx = 1; tIdx < OPT_STEPS; ++tIdx)
+    for (int32_t tIdx = CUT_IN_TIME; tIdx < OPT_STEPS; ++tIdx)
     {
-        // CostFunction* cost1 =
-        //     new AutoDiffCostFunction<ProgressCost, 1, 1>(
-        //         new ProgressCost(tIdx, discount));
-
-        // problem.AddResidualBlock(cost1, NULL, &d[tIdx]);
+        // obstacle cost
+        LossFunction* loss1 = new ScaledLoss(
+            new TrivialLoss(),
+            OBS_WEIGHT,
+            ceres::TAKE_OWNERSHIP);
 
         CostFunction* cost1 =
-            new AutoDiffCostFunction<DavidCost, 1, 1, 1>(
-                new DavidCost(tIdx, std::max(0.f, xc + vc * tIdx), vc, m_rho));
+            new AutoDiffCostFunction<IdmCost, 1, 1, 1>(
+                new IdmCost(tIdx, std::max(0., xc + vc * tIdx * DT), vc));
 
-        problem.AddResidualBlock(cost1, NULL, &d[tIdx], &v[tIdx]);
+        problem.AddResidualBlock(cost1, loss1, &d[tIdx], &v[tIdx]);
+    }
 
-        // speed limit
-        if (m_curveSpeedOn)
+    for (int32_t tIdx = 0; tIdx < OPT_STEPS; ++tIdx)
+    {
+        // add box constraint on a
         {
-            CostFunction* cost11 =
-                new AutoDiffCostFunction<SpeedLimitCost, 1, 1, 1>(
-                    new SpeedLimitCost(405.f, -40.f, 1.f));
-            problem.AddResidualBlock(cost11, loss8, &v[tIdx], &d[tIdx]);
+            CostFunction* cost8 =
+                new AutoDiffCostFunction<InequalityResidual, 1, 1>(
+                    new InequalityResidual(ALIM, InequalityResidual::LESS));
+
+            problem.AddResidualBlock(cost8, loss8, &a[tIdx]);
+
+            CostFunction* cost9 =
+                new AutoDiffCostFunction<InequalityResidual, 1, 1>(
+                    new InequalityResidual(-ALIM, InequalityResidual::GREATER));
+
+            problem.AddResidualBlock(cost9, loss8, &a[tIdx]);
+
+            CostFunction* cost10 =
+                new AutoDiffCostFunction<InequalityResidual, 1, 1>(
+                    new InequalityResidual(0.0, InequalityResidual::GREATER));
+            problem.AddResidualBlock(cost10, loss8, &v[tIdx]);
+
+            // CostFunction* cost11 =
+            //     new AutoDiffCostFunction<InequalityResidual, 1, 1>(
+            //         new InequalityResidual(, InequalityResidual::LESS));
+            // problem.AddResidualBlock(cost10, loss8, &d[tIdx]);
         }
 
-        // kinematic constraint
-        problem.AddResidualBlock(cost2, loss2, &d[tIdx], &d[tIdx - 1], &v[tIdx - 1]);
-        problem.AddResidualBlock(cost2, loss2, &v[tIdx], &v[tIdx - 1], &a[tIdx - 1]);
-        problem.AddResidualBlock(cost2, loss2, &a[tIdx], &a[tIdx - 1], &j[tIdx - 1]);
-
+        // speed limit
+        // if (m_curveSpeedOn)
+        // {
+        //     CostFunction* cost11 =
+        //         new AutoDiffCostFunction<SpeedLimitCost, 1, 1, 1>(
+        //             new SpeedLimitCost(405.f, -40.f, 1.f));
+        //     problem.AddResidualBlock(cost11, loss8, &v[tIdx], &d[tIdx]);
+        // }
         // min w_j * sum_i || j_i ||^2
         {
             CostFunction* cost3 =
@@ -379,41 +441,35 @@ void SpeedOpt::optimize(float32_t vInit,
                 JERK_WEIGHT,
                 ceres::TAKE_OWNERSHIP);
 
-            problem.AddResidualBlock(cost3, loss3, &j[tIdx - 1]);
+            problem.AddResidualBlock(cost3, loss3, &j[tIdx]);
+        }
+
+        // min w_j * sum_i || a_i ||^2
+        {
+            CostFunction* cost4 =
+                new AutoDiffCostFunction<TrivialResidual, 1, 1>(
+                    new TrivialResidual(0.0));
+
+            LossFunction* loss4 = new ScaledLoss(
+                new TrivialLoss(),
+                ACCEL_WEIGHT,
+                ceres::TAKE_OWNERSHIP);
+
+            problem.AddResidualBlock(cost4, loss4, &a[tIdx]);
         }
 
         // min w_v * sum_i || v_i - v_target||^2
-        // {
-        //     CostFunction* cost5 =
-        //         new AutoDiffCostFunction<TrivialResidual, 1, 1>(
-        //             new TrivialResidual(10.0));
-
-        //     LossFunction* loss5 = new ScaledLoss(
-        //         new TrivialLoss(),
-        //         VEL_WEIGHT,
-        //         ceres::TAKE_OWNERSHIP);
-
-        //     problem.AddResidualBlock(cost5, loss5, &v[tIdx - 1]);
-        // }
-
-        // add box constraint on a
         {
-            CostFunction* cost8 =
-                new AutoDiffCostFunction<InequalityResidual, 1, 1>(
-                    new InequalityResidual(ALIM, InequalityResidual::LESS));
+            CostFunction* cost5 =
+                new AutoDiffCostFunction<TrivialResidual, 1, 1>(
+                    new TrivialResidual(25.0)); // v limit sd
 
-            problem.AddResidualBlock(cost8, loss8, &a[tIdx - 1]);
+            LossFunction* loss5 = new ScaledLoss(
+                new TrivialLoss(),
+                VEL_WEIGHT,
+                ceres::TAKE_OWNERSHIP);
 
-            CostFunction* cost9 =
-                new AutoDiffCostFunction<InequalityResidual, 1, 1>(
-                    new InequalityResidual(-ALIM, InequalityResidual::GREATER));
-
-            problem.AddResidualBlock(cost9, loss8, &a[tIdx - 1]);
-
-            CostFunction* cost10 =
-                new AutoDiffCostFunction<InequalityResidual, 1, 1>(
-                    new InequalityResidual(0.0, InequalityResidual::GREATER));
-            problem.AddResidualBlock(cost10, loss8, &v[tIdx - 1]);
+            problem.AddResidualBlock(cost5, loss5, &v[tIdx - 1]);
         }
 
         // progress constraint
@@ -427,6 +483,16 @@ void SpeedOpt::optimize(float32_t vInit,
         // }
     }
 
+    for (int32_t tIdx = 1; tIdx < OPT_STEPS; ++tIdx)
+    {
+        // kinematic constraint
+        problem.AddResidualBlock(kinematicCost, equalityLoss, &d[tIdx], &d[tIdx - 1], &v[tIdx - 1]);
+        problem.AddResidualBlock(kinematicCost, equalityLoss, &v[tIdx], &v[tIdx - 1], &a[tIdx - 1]);
+        problem.AddResidualBlock(kinematicCost, equalityLoss, &a[tIdx], &a[tIdx - 1], &j[tIdx - 1]);
+    }
+
+    constexpr float32_t eps = 1e-1;
+
     // Build and solve the problem.
     Solver::Options options;
     options.linear_solver_type           = ceres::DENSE_QR;
@@ -434,6 +500,8 @@ void SpeedOpt::optimize(float32_t vInit,
     options.max_num_iterations           = 100;
     Solver::Summary summary;
     Solve(options, &problem, &summary);
+
+    // std::cout << summary.BriefReport() << std::endl;
 
     std::copy(&d[0], &d[OPT_STEPS], &m_d[0]);
     std::copy(&v[0], &v[OPT_STEPS], &m_v[0]);
@@ -524,10 +592,9 @@ std::vector<float32_t> SpeedOpt::getVAsFunctionOfD() const
 std::vector<float32_t> SpeedOpt::getObsD() const
 {
     std::vector<float32_t> ret{};
-
     for (size_t i = 0; i < OPT_STEPS; ++i)
     {
-        ret.push_back(std::max(0.f, m_xc + m_vc * static_cast<float32_t>(i)));
+        ret.push_back(std::max(0.f, m_xc + m_vc * static_cast<float32_t>(i * DT)));
     }
 
     return ret;
