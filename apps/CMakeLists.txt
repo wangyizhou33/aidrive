@@ -14,7 +14,7 @@ target_link_libraries(main
     glfw
     ImGui
     ImPlot
-    GLEW::GLEW
+    glew
     OpenGL::GL
     modules
     HybridAStar

@@ -52,6 +52,6 @@ target_include_directories(example_glfw_opengl3 PUBLIC
 target_link_libraries(example_glfw_opengl3 PUBLIC
     ImGui
     glfw
-    GLEW::GLEW
+    glew
     OpenGL::GL
 )

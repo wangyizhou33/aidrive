@@ -20,13 +20,18 @@ find_package(Ceres REQUIRED)
 
 # glfw
 add_subdirectory("3rdparty/glfw/")
+set(GLFW_INCLUDE_DIRS "3rdparty/glfw/glfw/include")
+include_directories(${GLFW_INCLUDE_DIRS})
+
+# glew
+add_subdirectory("3rdparty/glew/")
+include_directories("3rdparty/glew/include/")
+
+
 find_package(OpenGL REQUIRED)
 
 # boost
 find_package(Boost REQUIRED)
-
-# glew
-find_package(GLEW REQUIRED) # apt-get install libglfw-dev
 
 # imgui
 add_subdirectory("3rdparty/imgui/")
