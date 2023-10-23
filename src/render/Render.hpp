@@ -66,7 +66,8 @@ public:
 
     void drawPolyline(const std::vector<Vector3f>& ppts,
                       const Vector3f& pose, // reference frame to world
-                      ImU32 color = COLOR_GREEN);
+                      ImU32 color = COLOR_GREEN,
+                      bool  drawPoints = true);
 
     void drawSearchLines(const std::vector<Vector2f>& lines,
                          ImU32 color);

@@ -31,6 +31,7 @@
 #include <estimator/histogram.hpp>
 #include <estimator/holo_histogram.hpp>
 #include <distance_following/DistanceFollowing.hpp>
+#include <bezier/bezier.h>
 
 static void error_callback(int error, const char* description)
 {
@@ -299,6 +300,15 @@ int main(void)
     float32_t initEgoV{0.0};
     float32_t initObsV{0.0};
     float32_t initObsS{50.0};
+
+    // bezier control points
+    bezier::Point p0(0.0, 0.0);
+    bezier::Point p1(0.0, 1.0);
+    bezier::Point p2(10.0, 1.0);
+    bezier::Point p3(10.0, 0.0);
+
+    std::vector<aidrive::Vector3f> bezierCurve{};
+    std::vector<aidrive::Vector3f> bezierBbox{};
 
     while (!glfwWindowShouldClose(window))
     {
@@ -1145,6 +1155,78 @@ int main(void)
                         ImGui::PlotLines("desire", &desire[0], desire.size(), 0, nullptr, 0.0f, 200.0f, GRAPH_SIZE);
 
                         ImGui::EndTabItem();
+                    }
+
+                    if (ImGui::BeginTabItem("bezier"))
+                    {
+
+                        m_renderer.setPixelPerMeter(50.f);
+
+                        ImGui::PushItemWidth(100.f);
+
+                        ImGui::InputDouble("p0_x", &p0.x, 0.0, 0.0, "%.1f");
+                        ImGui::SameLine();
+                        ImGui::InputDouble("p0_y", &p0.y, 0.0, 0.0, "%.1f");
+
+                        ImGui::InputDouble("p1_x", &p1.x, 0.0, 0.0, "%.1f");
+                        ImGui::SameLine();
+                        ImGui::InputDouble("p1_y", &p1.y, 0.0, 0.0, "%.1f");
+
+                        ImGui::InputDouble("p2_x", &p2.x, 0.0, 0.0, "%.1f");
+                        ImGui::SameLine();
+                        ImGui::InputDouble("p2_y", &p2.y, 0.0, 0.0, "%.1f");
+
+                        ImGui::InputDouble("p3_x", &p3.x, 0.0, 0.0, "%.1f");
+                        ImGui::SameLine();
+                        ImGui::InputDouble("p3_y", &p3.y, 0.0, 0.0, "%.1f");
+                        ImGui::PopItemWidth();
+
+                        ImGui::EndTabItem();
+
+                        aidrive::Rect2f pt_dim{1.0f, 1.0f}; // vehicle dimension
+
+                        auto convert = [](const bezier::Point& p) {
+                            return aidrive::Vector3f({static_cast<float32_t>(p.x),
+                                                      static_cast<float32_t>(p.y),
+                                                      0.f});
+                        };
+
+                        m_renderer.drawRect(convert(p0), pt_dim);
+                        m_renderer.drawRect(convert(p1), pt_dim);
+                        m_renderer.drawRect(convert(p2), pt_dim);
+                        m_renderer.drawRect(convert(p3), pt_dim);
+
+                        // Create a cubic bezier with 4 points.
+                        bezier::Bezier<3> cubicBezier({p0, p1, p2, p3});
+
+                        bezierCurve.clear();
+                        for (size_t i = 0u; i <= 100; ++i)
+                        {
+                            bezierCurve.push_back(
+                                convert(cubicBezier.valueAt(static_cast<float64_t>(i) / 100.)));
+                        }
+
+                        bezierBbox.clear();
+                        bezier::TightBoundingBox bbox = cubicBezier.tbb();
+                        {
+                            bezierBbox.push_back(convert(bbox[0]));
+                            bezierBbox.push_back(convert(bbox[1]));
+                            bezierBbox.push_back(convert(bbox[2]));
+                            bezierBbox.push_back(convert(bbox[3]));
+                            bezierBbox.push_back(convert(bbox[0]));
+                        }
+
+                        m_renderer.drawPolyline(bezierCurve,
+                                                aidrive::Vector3f{0.0f, 0.0f, 0.0f},
+                                                aidrive::render::COLOR_GREEN,
+                                                true);
+                        m_renderer.drawPolyline(bezierBbox,
+                                                aidrive::Vector3f{0.0f, 0.0f, 0.0f},
+                                                aidrive::render::COLOR_BLACK,
+                                                false);
+
+
+
                     }
 
                     ImGui::EndTabBar();

@@ -114,7 +114,8 @@ void Renderer::drawRect(const Vector3f& pose,
 
 void Renderer::drawPolyline(const std::vector<Vector3f>& points,
                             const Vector3f& pose,
-                            ImU32 color)
+                            ImU32 color,
+                            bool  drawPoints)
 {
     Vector2f pos{pose[0], pose[1]};
     float32_t hdg = pose[2];
@@ -138,7 +139,9 @@ void Renderer::drawPolyline(const std::vector<Vector3f>& points,
     {
         Vector3f vNew = m_projection * m_view * Vector3f{v[0], v[1], 1.0f};
         verticesInPixel.push_back(convert(vNew));
-        drawRect(Vector3f{v[0], v[1], 0.0f}, smallRect, color); // draw points
+        
+        if (drawPoints)
+            drawRect(Vector3f{v[0], v[1], 0.0f}, smallRect, color); // draw points
     }
 
     // now draw line

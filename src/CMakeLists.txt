@@ -33,6 +33,8 @@ set(HEADERS
     estimator/holo_histogram.hpp
 
     distance_following/DistanceFollowing.hpp
+
+    bezier/bezier.h
 )
 
 set(SOURCES
@@ -50,6 +52,8 @@ set(SOURCES
     estimator/holo_histogram.cpp
 
     distance_following/DistanceFollowing.cpp
+
+    bezier/bezier.cpp
 )
 
 include_directories(${CERES_INCLUDE_DIRS})
