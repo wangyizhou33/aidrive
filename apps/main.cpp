@@ -109,6 +109,64 @@ void fromDequeToVector(const std::deque<float32_t>& dq,
     }
 }
 
+bezier::Bezier<3> fitBezier(float64_t x1,
+                            float64_t y1,
+                            float64_t t1,
+                            float64_t k1,
+                            float64_t x2,
+                            float64_t y2,
+                            float64_t t2,
+                            float64_t k2)
+{
+    // first fix p0, p3
+    bezier::Point p0(x1, y1);
+    bezier::Point p3(x2, y2);
+    bezier::Point p2(x2 - 1.0 * std::cos(t2), y2 - 1.0 * std::sin(t2));
+    bezier::Point p1(0.0, 0.0);
+
+    float64_t s1_min = 0.01;
+    float64_t s1_max = 100.0;
+
+    size_t cnt  = 0;
+    float64_t k1Fit = 0.;
+    do
+    {
+        float64_t s1 = 0.5 * (s1_min + s1_max);
+    
+        p1 = bezier::Point(x1 + s1 * std::cos(t1), y1 + s1 * std::sin(t1));
+        bezier::Bezier<3> cubicBezier({p0, p1, p2, p3});
+
+        k1Fit = cubicBezier.curvature(0.0);
+
+        // k decreases when s increases
+        if (k1Fit > 0.0)
+        {
+            if (k1 < k1Fit)
+            {
+                s1_min = s1;
+            }
+            else
+            {
+                s1_max = s1;
+            }
+        }
+        else // k1Fit < 0
+        {
+            if (k1 > k1Fit)
+            {
+                s1_min = s1;
+            }
+            else
+            {
+                s1_max = s1;
+            }
+        }
+        std::cout << "iter " << cnt << " target k: " << k1Fit << " current k: " << k1 <<  " current s: " << s1 << std::endl;
+    }while(std::abs(k1 - k1Fit) > 0.001 && ++cnt < 100);
+
+    return bezier::Bezier<3>({p0, p1, p2, p3});
+}
+
 constexpr uint32_t WINDOW_WIDTH  = 1280u;
 constexpr uint32_t WINDOW_HEIGHT = 1080u;
 
@@ -303,9 +361,21 @@ int main(void)
 
     // bezier control points
     bezier::Point p0(0.0, 0.0);
-    bezier::Point p1(0.0, 1.0);
-    bezier::Point p2(10.0, 1.0);
     bezier::Point p3(10.0, 0.0);
+    float32_t start_hdg(0.0);
+    float32_t end_hdg(0.0);
+    float32_t start_len(1.0f);
+    float32_t end_len(-1.0f);
+
+    bezier::Point p1(p0.x + start_len * std::cos(start_hdg), p0.y + start_len * std::sin(start_hdg));
+    bezier::Point p2(p3.x + end_len * std::cos(end_hdg), p3.y + end_len * std::sin(end_hdg));
+
+    float32_t start_k{0.0};
+    float32_t end_k{0.0};
+
+    float32_t k0{0.0};
+    float32_t k1{0.0};
+    float32_t ke{0.0};
 
     std::vector<aidrive::Vector3f> bezierCurve{};
     std::vector<aidrive::Vector3f> bezierBbox{};
@@ -1179,9 +1249,35 @@ int main(void)
                         ImGui::InputDouble("p3_x", &p3.x, 0.0, 0.0, "%.1f");
                         ImGui::SameLine();
                         ImGui::InputDouble("p3_y", &p3.y, 0.0, 0.0, "%.1f");
-                        ImGui::PopItemWidth();
 
-                        ImGui::EndTabItem();
+                        if (ImGui::SliderAngle("start hdg", &start_hdg, -180.f, 180.f))
+                        {
+                            p1 = bezier::Vec2(p0.x + start_len * std::cos(start_hdg),
+                                              p0.y + start_len * std::sin(start_hdg));
+                        }
+                        ImGui::SameLine();
+                        if (ImGui::SliderFloat("start len", &start_len, -0.1f, 20.f))
+                        {
+                            p1 = bezier::Vec2(p0.x + start_len * std::cos(start_hdg),
+                                              p0.y + start_len * std::sin(start_hdg));
+                        }
+                        if (ImGui::SliderAngle("end hdg", &end_hdg, -180.f, 180.f))
+                        {
+                            p2 = bezier::Vec2(p3.x + end_len * std::cos(end_hdg),
+                                              p3.y + end_len * std::sin(end_hdg));
+                        }
+                        ImGui::SameLine();
+                        if (ImGui::SliderFloat("end len", &end_len, -20.0f, -0.1f))
+                        {
+                            p2 = bezier::Vec2(p3.x + end_len * std::cos(end_hdg),
+                                              p3.y + end_len * std::sin(end_hdg));
+                        }
+
+                        ImGui::SliderFloat("start k", &start_k, -1.0f, 1.0f);
+                        ImGui::SliderFloat("end k", &end_k, -1.0f, 1.0f);
+
+
+                        ImGui::PopItemWidth();
 
                         aidrive::Rect2f pt_dim{1.0f, 1.0f}; // vehicle dimension
 
@@ -1196,37 +1292,79 @@ int main(void)
                         m_renderer.drawRect(convert(p2), pt_dim);
                         m_renderer.drawRect(convert(p3), pt_dim);
 
-                        // Create a cubic bezier with 4 points.
-                        bezier::Bezier<3> cubicBezier({p0, p1, p2, p3});
 
-                        bezierCurve.clear();
-                        for (size_t i = 0u; i <= 100; ++i)
+                        // if (ImGui::SmallButton("compute"))
+                        // {
+                            // Create a cubic bezier with 4 points.
+                            bezier::Bezier<3> cubicBezier({p0, p1, p2, p3});
+
+                            bezierCurve.clear();
+                            for (size_t i = 0u; i <= 100; ++i)
+                            {
+                                bezierCurve.push_back(
+                                    convert(cubicBezier.valueAt(static_cast<float64_t>(i) / 100.)));
+                            }
+
+                            bezierBbox.clear();
+                            bezier::TightBoundingBox bbox = cubicBezier.tbb();
+                            {
+                                bezierBbox.push_back(convert(bbox[0]));
+                                bezierBbox.push_back(convert(bbox[1]));
+                                bezierBbox.push_back(convert(bbox[2]));
+                                bezierBbox.push_back(convert(bbox[3]));
+                                bezierBbox.push_back(convert(bbox[0]));
+                            }
+
+                            k0 = cubicBezier.curvature(0.0);
+                            k1 = cubicBezier.curvature(1.0);
+                            ke = cubicBezier.maxCurvatureNumeric();
+                        // }
+
+                        if (ImGui::SmallButton("fit"))
                         {
-                            bezierCurve.push_back(
-                                convert(cubicBezier.valueAt(static_cast<float64_t>(i) / 100.)));
+                            bezier::Bezier<3> cubicBezier = fitBezier(p0.x, p0.y, start_hdg, start_k, p3.x, p3.y, end_hdg, end_k);
+                            p0 = cubicBezier[0];
+                            p1 = cubicBezier[1];
+                            p2 = cubicBezier[2];
+                            p3 = cubicBezier[3];
+
+                            bezierCurve.clear();
+                            for (size_t i = 0u; i <= 100; ++i)
+                            {
+                                bezierCurve.push_back(
+                                    convert(cubicBezier.valueAt(static_cast<float64_t>(i) / 100.)));
+                            }
+
+                            bezierBbox.clear();
+                            
+                            bezier::TightBoundingBox bbox = cubicBezier.tbb();
+                            {
+                                bezierBbox.push_back(convert(bbox[0]));
+                                bezierBbox.push_back(convert(bbox[1]));
+                                bezierBbox.push_back(convert(bbox[2]));
+                                bezierBbox.push_back(convert(bbox[3]));
+                                bezierBbox.push_back(convert(bbox[0]));
+                            }
+
+                            k0 = cubicBezier.curvature(0.0);
+                            k1 = cubicBezier.curvature(1.0);
+                            ke = cubicBezier.maxCurvatureNumeric();
                         }
 
-                        bezierBbox.clear();
-                        bezier::TightBoundingBox bbox = cubicBezier.tbb();
-                        {
-                            bezierBbox.push_back(convert(bbox[0]));
-                            bezierBbox.push_back(convert(bbox[1]));
-                            bezierBbox.push_back(convert(bbox[2]));
-                            bezierBbox.push_back(convert(bbox[3]));
-                            bezierBbox.push_back(convert(bbox[0]));
-                        }
+
+                        ImGui::Text("start curvature: %f", k0);
+                        ImGui::Text("end curvature: %f", k1);
+                        ImGui::Text("max curvature (numeric): %f", ke);
 
                         m_renderer.drawPolyline(bezierCurve,
                                                 aidrive::Vector3f{0.0f, 0.0f, 0.0f},
                                                 aidrive::render::COLOR_GREEN,
                                                 true);
-                        m_renderer.drawPolyline(bezierBbox,
-                                                aidrive::Vector3f{0.0f, 0.0f, 0.0f},
-                                                aidrive::render::COLOR_BLACK,
-                                                false);
-
-
-
+                        // m_renderer.drawPolyline(bezierBbox,
+                        //                         aidrive::Vector3f{0.0f, 0.0f, 0.0f},
+                        //                         aidrive::render::COLOR_BLACK,
+                        //                         false);
+                        ImGui::EndTabItem();
                     }
 
                     ImGui::EndTabBar();

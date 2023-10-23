@@ -26,6 +26,7 @@
 #include <limits>
 #include <utility>
 #include <vector>
+#include <iostream>
 
 namespace bezier
 {
@@ -299,6 +300,17 @@ namespace bezier
         bool isWithinZeroAndOne() const
         {
             return internal::isWithinZeroAndOne(x) && internal::isWithinZeroAndOne(y);
+        }
+
+        // added
+        double cross(const Vec2& other)
+        {
+            return x * other.y - y * other.x;
+        }
+
+        double dot(const Vec2& other)
+        {
+            return x * other.x + y * other.y;
         }
 
         double x;
@@ -876,6 +888,63 @@ namespace bezier
             assert(idx < size());
             return mControlPoints[idx];
         }
+
+        double curvature(double t) const
+        {
+            bezier::Bezier<N-1> db  = derivative(); // First derivative
+            bezier::Bezier<N-2> ddb = db.derivative(); 
+
+            // numerator
+            double n = db.valueAt(t).cross(ddb.valueAt(t));
+            double m = std::pow(db.valueAt(t).length(), 3);
+
+            return n / m;        
+        }
+
+        double maxCurvatureNumeric() const
+        {
+            size_t sample = 20u;
+
+            std::vector<double> absCurs{};
+            for (size_t i = 0; i <= sample; ++i)
+            {
+                double t = static_cast<double>(i) / static_cast<double>(sample);
+                absCurs.push_back(std::abs(curvature(t)));
+            }
+
+            return *std::max_element(absCurs.begin(), absCurs.end());
+        }
+
+        // double maxCurvatureAnalytical() const
+        // {
+        //     assert(N == 2);
+
+        //     // https://math.stackexchange.com/questions/220900/bezier-curvature
+        //     // extremum k'(t*) = 0
+        //     // also see https://inria.hal.science/inria-00072572/PDF/RR-4064.pdf
+        //     Point p0 = mControlPoints.at(0);
+        //     Point p1 = mControlPoints.at(1);
+        //     Point p2 = mControlPoints.at(2);
+
+        //     double A  = (p1 - p0).cross(p2 - p1) / 2.0;
+        //     double k0 = A / std::pow((p0 - p1).length(), 3);
+        //     double k1 = A / std::pow((p1 - p2).length(), 3);
+        //     // double kExtrem = (p2 - p1 * 2.0 + p0).length() / 2.0 / (p1 - p0).cross(p2 - p1);
+
+        //     // std::cout << k0 << " " << k1 << " " << kExtrem << std::endl;
+
+
+        //     double tStar = (p1 - p0).dot(p0 - p1 * 2.0 + p2) / (p0 - p1 * 2.0 + p2).length();
+        //     tStar        = std::max(0.0, tStar);
+        //     tStar        = std::min(1.0, tStar);
+        //     double  kExtrem      = curvature(tStar);
+        //     // std::cout << kStar << " " << tStar << " " << curvature(tStar) << std::endl;
+
+        //     return std::max({std::abs(curvature(0.0)),
+        //                      std::abs(curvature(1.0)),
+        //                      std::abs(kExtrem)});
+        // }
+
 
     private:
         ExtremeValues derivativeZero1() const
