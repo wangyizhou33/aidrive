@@ -388,6 +388,8 @@ int main(void)
     float64_t yy2{0.0};
     float64_t tt2{0.0};
     float64_t kk2{0.0};
+    float64_t klim{1.0};
+    float64_t dklim{1.0};
 
     while (!glfwWindowShouldClose(window))
     {
@@ -1381,7 +1383,7 @@ int main(void)
                         float64_t realtheta{};
                         float64_t realk{};
 
-                        std::vector<aidrive::Vector3f> poly = fit.optimize(kk1, xx2, yy2, tt2, kk2, 100.0, 100.0,
+                        std::vector<aidrive::Vector3f> poly = fit.optimize(kk1, xx2, yy2, tt2, kk2, klim, dklim,
                                                                            realx, realy, realtheta, realk);
                         m_renderer.drawPolyline(poly, pose, aidrive::render::COLOR_BLUE, false);
 
@@ -1407,6 +1409,9 @@ int main(void)
                         ImGui::InputDouble("kk2", &kk2, 0.01, 0.01, "%.2f");
                         ImGui::SameLine();
                         ImGui::Text("realk: %f", realk);
+
+                        ImGui::InputDouble("klim", &klim, 0.1, 0.01, "%.1f");
+                        ImGui::InputDouble("dklim", &dklim, 0.1, 0.01, "%.1f");
 
                         ImGui::PopItemWidth();
 

@@ -65,6 +65,11 @@ public:
         size_t i = 1u;
         for (; i < N_; ++i)
         {
+            if (abs(state[3]) > (T)klim_)
+            {
+                return false;
+            }
+
             if (terminate(state[0],
                           T(x_ - DS)))
             {
@@ -97,7 +102,7 @@ public:
     }
 
 private:
-    float64_t DS{0.1};
+    float64_t DS{0.1}; // dangerous
     float64_t x_{};
     float64_t y_{};
     float64_t theta_{};
@@ -121,7 +126,7 @@ std::vector<Vector3f> Fit::optimize(float64_t k1,
                                     float64_t& kk2)
 {
 
-    float64_t ds = 0.1f;
+    float64_t ds = 0.1;
 
     float64_t length    = std::sqrt(x2 * x2 + y2 * y2);
     constexpr int32_t N = 50;
@@ -138,7 +143,7 @@ std::vector<Vector3f> Fit::optimize(float64_t k1,
         new AutoDiffCostFunction<Cost,
                                  4 + N, // residual dim {pos_x_err, pos_y_err, theta_err, k_err, dk_i ....}
                                  N>(    // opt var dim {dk_i}
-            new Cost(x2, y2, theta2, k2, k1, N, 0.0, 0.0));
+            new Cost(x2, y2, theta2, k2, k1, N, klim, dklim / ds));
 
     Problem problem;
 
@@ -148,8 +153,8 @@ std::vector<Vector3f> Fit::optimize(float64_t k1,
 
     for (size_t i = 1u; i < N; ++i)
     {
-        problem.SetParameterLowerBound(&dk[0], i, -dklim);
-        problem.SetParameterUpperBound(&dk[0], i, dklim);
+        problem.SetParameterLowerBound(&dk[0], i, -dklim / ds);
+        problem.SetParameterUpperBound(&dk[0], i, dklim / ds);
     }
     // problem.SetParameterLowerBound(&dk[0], 0, 0.0);
     // problem.SetParameterUpperBound(&dk[0], 0, ds);
