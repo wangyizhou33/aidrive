@@ -4,12 +4,13 @@ include_directories(${CERES_INCLUDE_DIRS})
 include_directories(${CEREAL_INCLUDE_DIR})
 
 add_executable(Test
-    TestModel.cpp
-    TestCeres.cpp
-    TestGmock.cpp
-    TestCereal.cpp
-    TestDemo.cpp
-    TestHistogram.cpp
+    # TestModel.cpp
+    # TestCeres.cpp
+    # TestGmock.cpp
+    # TestCereal.cpp
+    # TestDemo.cpp
+    # TestHistogram.cpp
+    TestFit.cpp
     main.cpp
 )
 

@@ -32,6 +32,7 @@
 #include <estimator/holo_histogram.hpp>
 #include <distance_following/DistanceFollowing.hpp>
 #include <bezier/bezier.h>
+#include <control/Fit.hpp>
 
 static void error_callback(int error, const char* description)
 {
@@ -127,12 +128,12 @@ bezier::Bezier<3> fitBezier(float64_t x1,
     float64_t s1_min = 0.01;
     float64_t s1_max = 100.0;
 
-    size_t cnt  = 0;
+    size_t cnt      = 0;
     float64_t k1Fit = 0.;
     do
     {
         float64_t s1 = 0.5 * (s1_min + s1_max);
-    
+
         p1 = bezier::Point(x1 + s1 * std::cos(t1), y1 + s1 * std::sin(t1));
         bezier::Bezier<3> cubicBezier({p0, p1, p2, p3});
 
@@ -161,8 +162,8 @@ bezier::Bezier<3> fitBezier(float64_t x1,
                 s1_max = s1;
             }
         }
-        std::cout << "iter " << cnt << " target k: " << k1Fit << " current k: " << k1 <<  " current s: " << s1 << std::endl;
-    }while(std::abs(k1 - k1Fit) > 0.001 && ++cnt < 100);
+        std::cout << "iter " << cnt << " target k: " << k1Fit << " current k: " << k1 << " current s: " << s1 << std::endl;
+    } while (std::abs(k1 - k1Fit) > 0.001 && ++cnt < 100);
 
     return bezier::Bezier<3>({p0, p1, p2, p3});
 }
@@ -379,6 +380,14 @@ int main(void)
 
     std::vector<aidrive::Vector3f> bezierCurve{};
     std::vector<aidrive::Vector3f> bezierBbox{};
+
+    // ceres fit pose
+    aidrive::Fit fit;
+    float64_t kk1{0.0};
+    float64_t xx2{1.0};
+    float64_t yy2{0.0};
+    float64_t tt2{0.0};
+    float64_t kk2{0.0};
 
     while (!glfwWindowShouldClose(window))
     {
@@ -1276,7 +1285,6 @@ int main(void)
                         ImGui::SliderFloat("start k", &start_k, -1.0f, 1.0f);
                         ImGui::SliderFloat("end k", &end_k, -1.0f, 1.0f);
 
-
                         ImGui::PopItemWidth();
 
                         aidrive::Rect2f pt_dim{1.0f, 1.0f}; // vehicle dimension
@@ -1292,41 +1300,40 @@ int main(void)
                         m_renderer.drawRect(convert(p2), pt_dim);
                         m_renderer.drawRect(convert(p3), pt_dim);
 
-
                         // if (ImGui::SmallButton("compute"))
                         // {
-                            // Create a cubic bezier with 4 points.
-                            bezier::Bezier<3> cubicBezier({p0, p1, p2, p3});
+                        // Create a cubic bezier with 4 points.
+                        bezier::Bezier<3> cubicBezier({p0, p1, p2, p3});
 
-                            bezierCurve.clear();
-                            for (size_t i = 0u; i <= 100; ++i)
-                            {
-                                bezierCurve.push_back(
-                                    convert(cubicBezier.valueAt(static_cast<float64_t>(i) / 100.)));
-                            }
+                        bezierCurve.clear();
+                        for (size_t i = 0u; i <= 100; ++i)
+                        {
+                            bezierCurve.push_back(
+                                convert(cubicBezier.valueAt(static_cast<float64_t>(i) / 100.)));
+                        }
 
-                            bezierBbox.clear();
-                            bezier::TightBoundingBox bbox = cubicBezier.tbb();
-                            {
-                                bezierBbox.push_back(convert(bbox[0]));
-                                bezierBbox.push_back(convert(bbox[1]));
-                                bezierBbox.push_back(convert(bbox[2]));
-                                bezierBbox.push_back(convert(bbox[3]));
-                                bezierBbox.push_back(convert(bbox[0]));
-                            }
+                        bezierBbox.clear();
+                        bezier::TightBoundingBox bbox = cubicBezier.tbb();
+                        {
+                            bezierBbox.push_back(convert(bbox[0]));
+                            bezierBbox.push_back(convert(bbox[1]));
+                            bezierBbox.push_back(convert(bbox[2]));
+                            bezierBbox.push_back(convert(bbox[3]));
+                            bezierBbox.push_back(convert(bbox[0]));
+                        }
 
-                            k0 = cubicBezier.curvature(0.0);
-                            k1 = cubicBezier.curvature(1.0);
-                            ke = cubicBezier.maxCurvatureNumeric();
+                        k0 = cubicBezier.curvature(0.0);
+                        k1 = cubicBezier.curvature(1.0);
+                        ke = cubicBezier.maxCurvatureNumeric();
                         // }
 
                         if (ImGui::SmallButton("fit"))
                         {
                             bezier::Bezier<3> cubicBezier = fitBezier(p0.x, p0.y, start_hdg, start_k, p3.x, p3.y, end_hdg, end_k);
-                            p0 = cubicBezier[0];
-                            p1 = cubicBezier[1];
-                            p2 = cubicBezier[2];
-                            p3 = cubicBezier[3];
+                            p0                            = cubicBezier[0];
+                            p1                            = cubicBezier[1];
+                            p2                            = cubicBezier[2];
+                            p3                            = cubicBezier[3];
 
                             bezierCurve.clear();
                             for (size_t i = 0u; i <= 100; ++i)
@@ -1336,7 +1343,7 @@ int main(void)
                             }
 
                             bezierBbox.clear();
-                            
+
                             bezier::TightBoundingBox bbox = cubicBezier.tbb();
                             {
                                 bezierBbox.push_back(convert(bbox[0]));
@@ -1351,7 +1358,6 @@ int main(void)
                             ke = cubicBezier.maxCurvatureNumeric();
                         }
 
-
                         ImGui::Text("start curvature: %f", k0);
                         ImGui::Text("end curvature: %f", k1);
                         ImGui::Text("max curvature (numeric): %f", ke);
@@ -1364,6 +1370,46 @@ int main(void)
                         //                         aidrive::Vector3f{0.0f, 0.0f, 0.0f},
                         //                         aidrive::render::COLOR_BLACK,
                         //                         false);
+                        ImGui::EndTabItem();
+                    }
+                    if (ImGui::BeginTabItem("ceres fit pose"))
+                    {
+                        m_renderer.setPixelPerMeter(250.f);
+
+                        float64_t realx{};
+                        float64_t realy{};
+                        float64_t realtheta{};
+                        float64_t realk{};
+
+                        std::vector<aidrive::Vector3f> poly = fit.optimize(kk1, xx2, yy2, tt2, kk2, 100.0, 100.0,
+                                                                           realx, realy, realtheta, realk);
+                        m_renderer.drawPolyline(poly, pose, aidrive::render::COLOR_BLUE, false);
+
+                        m_renderer.drawRect(aidrive::Vector3f{(float32_t)xx2, (float32_t)yy2, (float32_t)tt2},
+                                            {0.05, 0.05},
+                                            aidrive::render::COLOR_BLUE);
+
+                        ImGui::PushItemWidth(100.f);
+                        ImGui::InputDouble("kk1", &kk1, 0.01, 0.01, "%.2f");
+
+                        ImGui::InputDouble("xx2", &xx2, 0.01, 0.01, "%.2f");
+                        ImGui::SameLine();
+                        ImGui::Text("realx: %f", realx);
+
+                        ImGui::InputDouble("yy2", &yy2, 0.01, 0.01, "%.2f");
+                        ImGui::SameLine();
+                        ImGui::Text("realy: %f", realy);
+
+                        ImGui::InputDouble("tt2", &tt2, 0.01, 0.01, "%.2f");
+                        ImGui::SameLine();
+                        ImGui::Text("realtheta: %f", realtheta);
+
+                        ImGui::InputDouble("kk2", &kk2, 0.01, 0.01, "%.2f");
+                        ImGui::SameLine();
+                        ImGui::Text("realk: %f", realk);
+
+                        ImGui::PopItemWidth();
+
                         ImGui::EndTabItem();
                     }
 

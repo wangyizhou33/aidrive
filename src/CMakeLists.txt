@@ -26,6 +26,7 @@ set(HEADERS
     render/Render.hpp
 
     control/Control.hpp
+    control/Fit.hpp
 
     planner/SpeedOpt.hpp
 
@@ -45,6 +46,7 @@ set(SOURCES
     render/Render.cpp
 
     control/Control.cpp
+    control/Fit.cpp
 
     planner/SpeedOpt.cpp
 
